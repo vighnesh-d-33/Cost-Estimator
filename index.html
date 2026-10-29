@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Metal printing cost estimator – Amace Solutions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <img src="logo.png" alt="Amace Solutions logo" width="64" height="64">
+    <div><h1>amace solutions pvt.ltd.</h1>
+    <p class="sub">Metal printing cost estimator</p>
+    <p class="addr">#429, 12th Cross Rd, 4th Phase, Peenya Industrial Area, Bengaluru – 560 058</p></div>
+  </div>
+  <div class="actions">
+    <button id="bNew" class="ghost">New quote</button>
+    <button id="bSave">Save quote</button>
+    <div class="dl"><button id="bDl" class="ghost" aria-haspopup="true" aria-expanded="false">Download</button>
+      <div id="dlMenu" hidden><button data-dl="xlsx">Excel (.xlsx)</button><button data-dl="pdf">PDF (.pdf)</button></div></div>
+  </div>
+</header>
+
+<main class="layout">
+<section class="left">
+  <div class="card">
+    <h2>Project details</h2>
+    <div class="grid">
+      <label>Machine<select id="machine" data-k="machine"></select></label>
+      <label>Material<select id="material" data-k="material"></select></label>
+      <label>Customer<input data-k="customer" type="text"></label>
+      <label>Part name / Drawing no<input data-k="part" type="text"></label>
+      <label>No. of lasers<select id="laser" data-k="laser"><option value="">Select</option><option>Single laser</option><option>Dual laser</option><option>Quad laser</option></select></label>
+      <label>Total no. of parts or sets / build<span class="u"><input class="y" data-k="parts" type="number" min="1"><i>Nos</i></span></label>
+      <label>Layer thickness (pick or type)<span class="u"><input class="y" data-k="layer" type="number" min="1" list="layerList" placeholder="Select / type"><i>µm</i></span><datalist id="layerList"><option value="30"><option value="40"><option value="50"><option value="60"><option value="90"><option value="100"></datalist></label>
+      <label>Print time (days)<span class="u"><input class="y" data-k="days" type="number" min="0"><i>days</i></span></label>
+      <label>Print time (extra hours)<span class="u"><input class="y" data-k="hrs" type="number" min="0" step="0.1"><i>hrs</i></span></label>
+      <label>Material consumption / build<span class="u"><input class="y" data-k="kg" type="number" min="0" step="0.01"><i>Kg</i></span></label>
+      <label>No. of sets<span class="u"><input class="y" data-k="sets" type="number" min="1"><i>sets</i></span></label>
+      <label>No. of units (builds)<span class="u"><input class="y" data-k="units" type="number" min="1"><i>units</i></span></label>
+    </div>
+    <p class="muted">Total print time = days × 24 + hours = <b data-o="printHrs"></b> hrs. Select a machine and material to auto-fill the related values. Yellow fields are manual entries.</p>
+    <details class="est"><summary>Estimate material kg from part &amp; support volume (optional)</summary>
+      <div class="grid">
+        <label>Part volume (cm³, from Magics / SLM Build Pro)<span class="u"><input class="y" data-k="pv" type="number" min="0" step="any"><i>cm³</i></span></label>
+        <label>Support volume (cm³)<span class="u"><input class="y" data-k="sv" type="number" min="0" step="any"><i>cm³</i></span></label>
+        <label>Estimated kg incl. powder wastage<span class="u"><b data-o="estKg" class="val"></b><button id="bUse" class="ghost">Use as consumption</button></span></label>
+      </div>
+      <p class="muted">= (part + support + wastage) ÷ 1000 × material density. Density and wastage come from the powder list.</p>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>Cost breakdown</h2>
+    <div class="scroll"><table id="costTbl"><thead><tr><th>Sl.</th><th>Items</th><th>No. of units</th><th>Per unit cost</th><th>Total cost (Rs.)</th><th>%</th></tr></thead><tbody></tbody>
+    <tfoot id="foot"></tfoot></table></div>
+    <p class="note">All costs shown are for estimation purpose only. They may change based on the calculation method and actual machine configuration, machine cost, printing strategy, etc.</p>
+  </div>
+</section>
+
+<aside class="right">
+  <div class="card sum">
+    <span class="muted">Per part cost</span>
+    <div class="big" data-o="perPart"></div>
+    <dl>
+      <dt>Total cost</dt><dd data-o="total"></dd>
+      <dt>Per set cost</dt><dd data-o="perSet"></dd>
+      <dt>Margin</dt><dd data-o="margin"></dd>
+      <dt>Total round-off</dt><dd data-o="round"></dd>
+      <dt>Advance (50%)</dt><dd data-o="adv"></dd>
+      <dt>Advance with P&amp;F</dt><dd data-o="advPF"></dd>
+    </dl>
+  </div>
+</aside>
+</main>
+
+<section class="card wide">
+  <nav class="tabs"><button data-t="t1" class="on">Machine hour rates</button><button data-t="t7">Machine list</button><button data-t="t4">Powder / material list</button><button data-t="t2">Loan calculator</button><button data-t="t3">Assumptions</button><!-- <button data-t="t5">Excel formula map</button> --><button data-t="t6">Saved quotes</button></nav>
+  <div id="t1" class="tab on"><div id="machines" class="grid3"></div></div>
+  <div id="t7" class="tab"><div class="scroll"><table id="kTbl"></table></div><button id="kAdd" class="ghost">Add machine</button> <button id="kSave">Save</button>
+    <p class="muted">Selecting a machine fills its finance values and laser type. A fixed rate per hour overrides the EMI-based machine hour rate (blank = use EMI).</p></div>
+  <div id="t2" class="tab">
+    <div class="loan">
+      <div class="lc">
+        <div class="lr"><span>Loan amount</span><span class="pill">₹ <input id="lAmt" type="number"></span></div><input type="range" id="sAmt" min="100000" max="50000000" step="50000">
+        <div class="lr"><span>Rate of interest (p.a)</span><span class="pill"><input id="lRate" type="number" step="0.1"> %</span></div><input type="range" id="sRate" min="1" max="30" step="0.1">
+        <div class="lr"><span>Loan tenure</span><span class="pill"><input id="lYrs" type="number"> Yr</span></div><input type="range" id="sYrs" min="1" max="30" step="1">
+        <div class="res"><div><span>Monthly EMI</span><b id="rEmi"></b></div><div><span>Principal amount</span><b id="rPr"></b></div><div><span>Total interest</span><b id="rInt"></b></div><div><span>Total amount</span><b id="rTot"></b></div></div>
+        <div class="apply"><select id="lTarget" autocomplete="off" aria-label="Apply loan to"><option value="stlr" selected>Selected machine</option><option value="furn">HT furnace</option><option value="wire">Wire cut</option></select><button id="lApply">Apply EMI to this machine</button></div>
+      </div>
+      <div class="chart"><div class="lg"><i class="a"></i>Principal amount<i class="b"></i>Interest amount</div>
+        <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="45" fill="none" stroke="#ECEEFF" stroke-width="18"/><circle id="arc" cx="60" cy="60" r="45" fill="none" stroke="#5465FF" stroke-width="18" transform="rotate(-90 60 60)"/></svg></div>
+    </div>
+  </div>
+  <div id="t3" class="tab"><p class="muted">These are the fixed numbers that are typed inside the Excel formulas (for example the 4 kW in the power cost, the 50% advance, the ₹750 P&amp;F). They are filled when you select a machine and can be changed here for a quote.</p><div class="scroll"><table id="aTbl"><thead><tr><th>Setting</th><th>Value</th><th>Unit</th></tr></thead><tbody></tbody></table></div></div>
+  <div id="t4" class="tab"><div class="scroll"><table id="pTbl"></table></div><button id="pAdd" class="ghost">Add powder</button> <button id="pSave">Save</button>
+    <p class="muted">Powder prices, density and wastage are from the F-APPLN-01 R9 sheet. Selecting a material fills the powder price/kg. HT hours are the previous sheet's values (editable).</p></div>
+  <!-- Excel formula map tab (commented out – remove these comment marks and the ones around its button above to show it again)
+  <div id="t5" class="tab"><div class="scroll"><table id="fTbl"><thead><tr><th>Cell</th><th>Meaning</th><th>Formula</th><th>Connected cells</th></tr></thead><tbody></tbody></table></div></div>
+  -->
+  <div id="t6" class="tab"><div class="scroll"><table id="qTbl"><thead><tr><th>Saved</th><th>Customer</th><th>Part</th><th>Machine / material</th><th>Per part</th><th></th></tr></thead><tbody></tbody></table></div></div>
+</section>
+<footer class="foot">© Amace Solutions Pvt. Ltd. · Metal printing cost estimator · Estimates only</footer>
+<div id="toast"></div>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
