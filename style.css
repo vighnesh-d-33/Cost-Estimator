@@ -61,3 +61,116 @@ code{font-family:"IBM Plex Mono",monospace;font-size:12px}td.l{text-align:left}
 .actions>button,.dl,.dl>button{width:100%}.dl{grid-column:2}
 
 #aTbl{max-width:640px}#aTbl th:nth-child(2),#aTbl td:nth-child(2){text-align:right;width:150px}#aTbl td.l,#aTbl th:nth-child(1),#aTbl th:nth-child(3){text-align:left}#aTbl td input{width:130px}
+
+/* access-key gate */
+#gate{position:fixed;inset:0;z-index:100;display:grid;place-items:center;background:rgba(10,14,16,.92);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);padding:16px}
+#gate[hidden]{display:none}
+.gf{background:var(--card);border-radius:var(--r);padding:28px;width:min(360px,100%);display:grid;gap:12px;justify-items:center;text-align:center;border-top:4px solid #E8262B}
+.gf h2{margin:0}.gf input{text-align:center}.gf button{width:100%}.err{color:#C62828;min-height:1.2em;margin:0;font-size:13px}
+.actions #bOut{grid-column:1}.actions #bOut[hidden]{display:none}
+.gf input{letter-spacing:normal}.gf input[type=password]{letter-spacing:.1em}.gf button:disabled{opacity:.6;cursor:wait}
+.gf[hidden]{display:none}.gf .linkbtn{background:none;color:var(--mut);text-decoration:underline;width:auto;padding:2px 6px;font-size:13px}#uTbl th,#uTbl td{text-align:left}#t8 .grid{max-width:760px}#t8 p button{margin-top:4px}
+
+/* ---- alignment: every field row lines up at the bottom edge, all controls the same height ---- */
+.grid{align-items:end}
+input:not([type=range]):not([type=checkbox]),select{height:38px}
+td input,td select,.pill input{height:auto}
+.u{min-height:38px}.u .val{display:flex;align-items:center;height:38px}
+.u button{height:38px;padding-top:0;padding-bottom:0;white-space:nowrap}
+.est .grid{align-items:end}.est label{justify-content:flex-end}
+/* header buttons: New quote | Save quote on top, Sign out | Download below */
+.actions{display:grid;grid-template-columns:repeat(2,minmax(150px,1fr));gap:8px;align-items:stretch}
+.actions button{white-space:nowrap}
+.actions>#bNew{grid-area:1/1}.actions>#bSave{grid-area:1/2}.actions #bOut{grid-area:2/1}.actions .dl{grid-area:2/2}
+
+.gf .linkbtn[hidden]{display:none}
+/* saved quotes table: headings sit exactly over their values */
+#qTbl th,#qTbl td{text-align:left;vertical-align:middle}
+#qTbl th:nth-child(5),#qTbl td:nth-child(5){text-align:right;padding-right:24px}
+#qTbl th:last-child,#qTbl td:last-child{text-align:right}
+
+.gf .gate-help{margin:4px 0 0;color:var(--mut);font-size:13px;line-height:1.5}.gf .gate-help[hidden]{display:none}
+
+/* sign-in page: machine video on the left, sign-in form on the right */
+#gate{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(380px,1fr);place-items:stretch;padding:0;background:#0b0f11;-webkit-backdrop-filter:none;backdrop-filter:none}
+.gate-media{position:relative;display:grid;place-items:center;background:#0b0f11;overflow:hidden}
+.gate-media video{width:100%;height:100%;object-fit:contain;display:block}
+.gate-media::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(to bottom,#0b0f11 0,transparent 14%,transparent 86%,#0b0f11 100%),linear-gradient(to right,transparent 82%,#0b0f11)}
+.gate-side{display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 30% 20%,#17262a,#0b0f11 70%);overflow:auto}
+@media(max-width:900px){#gate{grid-template-columns:1fr;grid-template-rows:minmax(0,32vh) minmax(0,1fr)}.gate-media::after{background:linear-gradient(to bottom,transparent 80%,#0b0f11)}.gate-side{align-items:start;padding:16px}}
+.gate-media video{width:min(100%,calc(100vh * 1.7778));height:auto;aspect-ratio:16/9;object-fit:cover;-webkit-mask-image:linear-gradient(to bottom,transparent,#000 14%,#000 86%,transparent);mask-image:linear-gradient(to bottom,transparent,#000 14%,#000 86%,transparent)}
+.gate-media::after{background:linear-gradient(to right,transparent 80%,#0b0f11)}
+@media(max-width:900px){.gate-media video{width:auto;height:100%;max-width:100%}.gate-media::after{background:none}}
+
+/* ---- sign-in page colours: same charcoal + machine maroon as the video ---- */
+#gate{--gbg:#181818;background:var(--gbg)}
+.gate-media{background:var(--gbg)}
+.gate-media video{-webkit-mask-image:linear-gradient(to bottom,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(to bottom,transparent,#000 12%,#000 88%,transparent)}
+.gate-media::after{background:linear-gradient(to right,transparent 78%,#1c1c1d)}
+.gate-side{background:radial-gradient(ellipse at 18% 12%,#515153 0,#2c2c2e 42%,#171718 100%)}
+.gf{--ink:#F2F2F3;--mut:#B3B5B9;--line:rgba(255,255,255,.2);--card:rgba(255,255,255,.07);
+  background:linear-gradient(160deg,rgba(60,60,63,.78),rgba(24,24,26,.86));color:var(--ink);
+  border:1px solid rgba(255,255,255,.14);border-top:4px solid #8A2253;box-shadow:0 18px 50px rgba(0,0,0,.45);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+.gf h2{color:#fff}
+.gf input{background:rgba(255,255,255,.07);color:#F2F2F3;border-color:rgba(255,255,255,.2)}
+.gf input::placeholder{color:#9A9CA1}
+.gf input:focus{border-color:#C2578A;outline:2px solid rgba(194,87,138,.45);outline-offset:0}
+.gf button[type=submit]{background:linear-gradient(135deg,#8A2253,#5B1437);letter-spacing:.02em}
+.gf button[type=submit]:hover{filter:brightness(1.15)}
+.gf .linkbtn{color:#C9CBCF}
+.gf .gate-help{color:#B3B5B9}
+.gf .err{color:#FF9DA0}
+.gf .muted{color:#B3B5B9}
+
+/* ================= Machine view (default). The "White view" button removes all of this. ================= */
+.themebtn{align-self:center;margin-left:auto;white-space:nowrap}
+html:not([data-theme=white]){color-scheme:dark;--ink:#F2F2F3;--paper:#17171A;--card:rgba(30,30,33,.80);--line:rgba(255,255,255,.17);--mut:#B3B5B9;--acc:#8A2253;--y:#4A4310;--yb:#8F7F10}
+html:not([data-theme=white]) body{background:linear-gradient(rgba(8,8,10,.14),rgba(8,8,10,.40)) fixed,url(home_bg.jpg) center/cover fixed #1a1a1a}
+html:not([data-theme=white]) .top{background:rgba(22,22,24,.84);color:#F2F2F3;border-bottom:1px solid rgba(255,255,255,.12);box-shadow:0 2px 18px rgba(0,0,0,.45)}
+html:not([data-theme=white]) .sub{color:#C9CBCF}html:not([data-theme=white]) .addr{color:#9A9CA1}
+html:not([data-theme=white]) .top .ghost{color:#F2F2F3;border-color:rgba(255,255,255,.26)}
+html:not([data-theme=white]) .card{-webkit-backdrop-filter:blur(12px);backdrop-filter:blur(12px);border-color:rgba(255,255,255,.12);box-shadow:0 10px 34px rgba(0,0,0,.4)}
+html:not([data-theme=white]) .sum{border-top:4px solid #8A2253}
+html:not([data-theme=white]) input,html:not([data-theme=white]) select{background:rgba(255,255,255,.07);color:#F2F2F3}
+html:not([data-theme=white]) input.y{background:var(--y);border-color:var(--yb)}
+html:not([data-theme=white]) input::placeholder{color:#9A9CA1}
+html:not([data-theme=white]) select option{background:#232325;color:#F2F2F3}
+html:not([data-theme=white]) button.ghost{color:#F2F2F3}
+html:not([data-theme=white]) .tabs .on{border-color:#C2578A}
+html:not([data-theme=white]) #dlMenu{background:#232325}
+html:not([data-theme=white]) .pill{background:rgba(255,255,255,.1);color:#F2F2F3}
+html:not([data-theme=white]) .chart circle:first-child{stroke:rgba(255,255,255,.16)}
+html:not([data-theme=white]) .foot{color:#C9CBCF}
+@media(max-width:900px){html:not([data-theme=white]) body{background-attachment:scroll,scroll}.themebtn{margin-left:0}}
+
+/* arrow navigation button (right edge, just below the header): switches between the machine view and the white view */
+.navbtn{position:fixed;right:14px;top:calc(var(--hdr,104px) + 14px);z-index:30;width:42px;height:42px;padding:0;border-radius:50%;display:grid;place-items:center;background:rgba(22,22,24,.88);color:#fff;border:1px solid rgba(255,255,255,.32);box-shadow:0 4px 14px rgba(0,0,0,.38)}
+.navbtn svg{width:20px;height:20px;transition:transform .2s}
+html[data-theme=white] .navbtn svg{transform:rotate(180deg)}
+html[data-theme=white] .navbtn{background:rgba(255,255,255,.96);color:#14262B;border-color:#C9D2CE}
+.navbtn::after{content:attr(data-tip);position:absolute;right:calc(100% + 10px);top:50%;transform:translateY(-50%);background:#232325;color:#fff;font:500 13px "IBM Plex Sans",system-ui,sans-serif;padding:5px 10px;border-radius:6px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .12s}
+.navbtn:hover::after,.navbtn:focus-visible::after{opacity:1}
+@media(max-width:900px){.navbtn{top:auto;bottom:18px}}
+/* manual-entry cells keep their yellow box; whole rows are no longer yellow (only Total round-off and Per part cost stay) */
+tr.yel td{background:transparent}
+/* leave a gutter for the arrow button on screens where the page has no empty margin */
+@media(min-width:901px) and (max-width:1600px){.layout{padding-right:72px}.wide{width:calc(100% - 96px);margin:0 72px 24px 24px}}
+
+/* model image (browse from device, shown with the quote) */
+.imgrow{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;margin-top:14px}
+.imgpick{display:grid;gap:8px;min-width:220px}.imglabel{font-size:13px;color:var(--mut)}.imglabel small{font-size:12px}
+.imgbtns{display:flex;gap:8px;flex-wrap:wrap}
+.imgbox{border:1px solid var(--line);border-radius:var(--r);padding:6px;background:rgba(255,255,255,.05)}
+.imgbox img{display:block;max-width:280px;max-height:190px;border-radius:4px}
+
+/* ===== Approval workflow ===== */
+.chip{display:inline-block;padding:2px 10px;border-radius:999px;font-size:12px;font-weight:600;background:#e4e7ea;color:#33414a;white-space:nowrap}
+.chip.pending{background:#ffe9a8;color:#6b4e00}.chip.approved{background:#cdeed6;color:#14602b}.chip.rejected{background:#ffd3cf;color:#8f1a12}
+.apbox{margin:0 0 14px;padding:10px 12px;border:1px solid var(--line);border-radius:var(--r)}
+.aptitle{font-weight:600;font-size:13px;margin-bottom:6px}
+.apsteps{list-style:none;margin:0;padding:0;display:grid;gap:4px;font-size:13px}
+.apsteps li{padding:4px 8px;border-radius:6px;background:rgba(127,127,127,.12);color:var(--mut)}
+.apsteps li.ok{background:#cdeed6;color:#14602b}.apsteps li.now{background:#ffe9a8;color:#6b4e00}.apsteps li.no{background:#ffd3cf;color:#8f1a12}
+.aprem{margin:8px 0 0;padding:8px;border-left:3px solid #b3261e;background:rgba(179,38,30,.1);font-size:13px;white-space:pre-wrap}
+.aph{font-size:14px;margin:14px 0 4px}

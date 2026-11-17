@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'self'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex, nofollow">
 <title>Metal printing cost estimator – Amace Solutions</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -18,7 +21,9 @@
   </div>
   <div class="actions">
     <button id="bNew" class="ghost">New quote</button>
+    <button id="bOut" class="ghost" hidden>Sign out</button>
     <button id="bSave">Save quote</button>
+    <button id="bAppr" class="ghost" title="Save the quote, then e-mail it to your 3 approvers one after another">Send approval</button>
     <div class="dl"><button id="bDl" class="ghost" aria-haspopup="true" aria-expanded="false">Download</button>
       <div id="dlMenu" hidden><button data-dl="xlsx">Excel (.xlsx)</button><button data-dl="pdf">PDF (.pdf)</button></div></div>
   </div>
@@ -42,6 +47,15 @@
       <label>No. of sets<span class="u"><input class="y" data-k="sets" type="number" min="1"><i>sets</i></span></label>
       <label>No. of units (builds)<span class="u"><input class="y" data-k="units" type="number" min="1"><i>units</i></span></label>
     </div>
+    <div class="imgrow">
+      <div class="imgpick">
+        <span class="imglabel">Model image <small>(optional – shown with this quote, in the PDF and in the Excel)</small></span>
+        <div class="imgbtns"><button type="button" id="imgBrowse" class="ghost">Browse image…</button><button type="button" id="imgRemove" class="ghost" hidden>Remove</button></div>
+        <input type="file" id="imgFile" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp" hidden>
+        <span class="muted" id="imgMsg" role="status"></span>
+      </div>
+      <div class="imgbox" id="imgBox" hidden><img id="imgPrev" alt="Model image of this quote"></div>
+    </div>
     <p class="muted">Total print time = days × 24 + hours = <b data-o="printHrs"></b> hrs. Select a machine and material to auto-fill the related values. Yellow fields are manual entries.</p>
     <details class="est"><summary>Estimate material kg from part &amp; support volume (optional)</summary>
       <div class="grid">
@@ -63,6 +77,7 @@
 
 <aside class="right">
   <div class="card sum">
+    <div id="apBox" class="apbox" hidden></div>
     <span class="muted">Per part cost</span>
     <div class="big" data-o="perPart"></div>
     <dl>
@@ -70,7 +85,7 @@
       <dt>Per set cost</dt><dd data-o="perSet"></dd>
       <dt>Margin</dt><dd data-o="margin"></dd>
       <dt>Total round-off</dt><dd data-o="round"></dd>
-      <dt>Advance (50%)</dt><dd data-o="adv"></dd>
+      <dt data-advlab>Advance</dt><dd data-o="adv"></dd>
       <dt>Advance with P&amp;F</dt><dd data-o="advPF"></dd>
     </dl>
   </div>
@@ -78,7 +93,7 @@
 </main>
 
 <section class="card wide">
-  <nav class="tabs"><button data-t="t1" class="on">Machine hour rates</button><button data-t="t7">Machine list</button><button data-t="t4">Powder / material list</button><button data-t="t2">Loan calculator</button><button data-t="t3">Assumptions</button><!-- <button data-t="t5">Excel formula map</button> --><button data-t="t6">Saved quotes</button></nav>
+  <nav class="tabs"><button data-t="t1" class="on">Machine hour rates</button><button data-t="t7">Machine list</button><button data-t="t4">Powder / material list</button><button data-t="t2">Loan calculator</button><button data-t="t3">Values</button><button data-t="t9" id="tabAppr">Approvals</button><button data-t="t6">Saved quotes</button><button data-t="t8" id="tabUsers" hidden>Users</button></nav>
   <div id="t1" class="tab on"><div id="machines" class="grid3"></div></div>
   <div id="t7" class="tab"><div class="scroll"><table id="kTbl"></table></div><button id="kAdd" class="ghost">Add machine</button> <button id="kSave">Save</button>
     <p class="muted">Selecting a machine fills its finance values and laser type. A fixed rate per hour overrides the EMI-based machine hour rate (blank = use EMI).</p></div>
@@ -95,19 +110,59 @@
         <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="45" fill="none" stroke="#ECEEFF" stroke-width="18"/><circle id="arc" cx="60" cy="60" r="45" fill="none" stroke="#5465FF" stroke-width="18" transform="rotate(-90 60 60)"/></svg></div>
     </div>
   </div>
-  <div id="t3" class="tab"><p class="muted">These are the fixed numbers that are typed inside the Excel formulas (for example the 4 kW in the power cost, the 50% advance, the ₹750 P&amp;F). They are filled when you select a machine and can be changed here for a quote.</p><div class="scroll"><table id="aTbl"><thead><tr><th>Setting</th><th>Value</th><th>Unit</th></tr></thead><tbody></tbody></table></div></div>
+  <div id="t3" class="tab"><p class="muted">These are the fixed numbers used in the cost formulas. They are filled when you select a machine and can be changed here for a quote.</p><div class="scroll"><table id="aTbl"><thead><tr><th>Setting</th><th>Value</th><th>Unit</th></tr></thead><tbody></tbody></table></div></div>
   <div id="t4" class="tab"><div class="scroll"><table id="pTbl"></table></div><button id="pAdd" class="ghost">Add powder</button> <button id="pSave">Save</button>
     <p class="muted">Powder prices, density and wastage are from the F-APPLN-01 R9 sheet. Selecting a material fills the powder price/kg. HT hours are the previous sheet's values (editable).</p></div>
-  <!-- Excel formula map tab (commented out – remove these comment marks and the ones around its button above to show it again)
-  <div id="t5" class="tab"><div class="scroll"><table id="fTbl"><thead><tr><th>Cell</th><th>Meaning</th><th>Formula</th><th>Connected cells</th></tr></thead><tbody></tbody></table></div></div>
-  -->
-  <div id="t6" class="tab"><div class="scroll"><table id="qTbl"><thead><tr><th>Saved</th><th>Customer</th><th>Part</th><th>Machine / material</th><th>Per part</th><th></th></tr></thead><tbody></tbody></table></div></div>
+  <div id="t8" class="tab"><p class="muted">Admin only. Add a user, or type an existing user name to set a new password for that person. Users cannot change their own password.</p>
+    <div class="grid"><label>User name<input id="uName" type="text" maxlength="40" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <label>Password (10+, letters and numbers)<input id="uPass" type="password" autocomplete="new-password" maxlength="100"></label>
+      <label>Role<select id="uRole"><option value="user">User</option><option value="approver">Approver</option><option value="admin">Admin</option></select></label>
+      <label>E-mail (needed for approvers; gets status mails)<input id="uMail" type="email" maxlength="100" autocomplete="off"></label></div>
+    <div id="apLv"><h3 class="aph">Approvers for this user's quotes (Level 1 → 2 → 3). Required for a User; not needed for an Approver login.</h3>
+    <div class="grid">
+      <label>Level 1 – name<input id="a1n" type="text" maxlength="60" autocomplete="off"></label><label>Level 1 – e-mail<input id="a1e" type="email" maxlength="100" autocomplete="off"></label>
+      <label>Level 2 – name<input id="a2n" type="text" maxlength="60" autocomplete="off"></label><label>Level 2 – e-mail<input id="a2e" type="email" maxlength="100" autocomplete="off"></label>
+      <label>Level 3 – name<input id="a3n" type="text" maxlength="60" autocomplete="off"></label><label>Level 3 – e-mail<input id="a3e" type="email" maxlength="100" autocomplete="off"></label></div></div>
+    <p><button id="uSave">Add user / set password</button> <button id="uAp" class="ghost">Save e-mail &amp; approvers only</button></p>
+    <div class="scroll"><table id="uTbl"><thead><tr><th>User name</th><th>Role</th><th>Status</th><th>Approvers (L1 → L2 → L3)</th><th></th></tr></thead><tbody></tbody></table></div></div>
+  <div id="t9" class="tab"><p class="muted">Quotes waiting for <b>your</b> approval. Select one to see its details. <button id="apRefresh" class="ghost">Refresh</button></p>
+    <div class="scroll"><table id="apTbl"><thead><tr><th>Sent</th><th>Level</th><th>Customer</th><th>Part</th><th>Per part</th><th>Prepared by</th><th></th></tr></thead><tbody></tbody></table></div>
+    <div id="apDet" class="apdet" hidden>
+      <h3 id="apDetT"></h3><div id="apDetBody"></div>
+      <label class="aprl">Remarks (compulsory for approve and reject)<textarea id="apRem" maxlength="500" rows="3" placeholder="Type your remarks / changes"></textarea></label>
+      <p id="apDetBtns"><button id="apOk" class="apok">Approve</button> <button id="apNo" class="apno">Reject</button> <button id="apClose" class="ghost">Close</button></p>
+    </div></div>
+  <div id="t6" class="tab"><p class="muted">Only the quotes you saved are listed here. <button id="qRefresh" class="ghost">Refresh</button> <b id="qCount"></b></p><div class="scroll"><table id="qTbl"><thead><tr><th>Saved</th><th>Customer</th><th>Part</th><th>Machine / material</th><th>Per part</th><th>Saved by</th><th>Approval</th><th></th></tr></thead><tbody></tbody></table></div></div>
 </section>
 <footer class="foot">© amace solutions pvt.ltd · Metal printing cost estimator · Estimates only</footer>
+<div id="gate" hidden role="dialog" aria-modal="true" aria-labelledby="gateT">
+  <div class="gate-media" aria-hidden="true"><video id="gateVid" poster="exploded_doors_clear_poster.jpg?v=2" muted loop playsinline autoplay preload="auto" disablepictureinpicture tabindex="-1"><source src="exploded_doors_clear_1080.mp4?v=3" type="video/mp4"><source src="exploded_doors_clear_2560.mp4?v=2" type="video/mp4"></video></div>
+  <div class="gate-side">
+  <form id="gateF" class="gf" autocomplete="on">
+    <img src="logo.png" alt="" width="56" height="56">
+    <h2 id="gateT">Sign in</h2>
+    <input id="gateUser" type="text" name="username" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="User name or e-mail" aria-label="User name or e-mail" maxlength="40">
+    <input id="gatePass" type="password" name="password" autocomplete="current-password" placeholder="Password" aria-label="Password" maxlength="100">
+    <p id="gateMsg" class="err" role="alert"></p>
+    <button type="submit">Sign in</button>
+    <button type="button" id="bForgot" class="linkbtn" hidden>Forgot admin password?</button>
+    <p id="gateHelp" class="gate-help">Forgot your password?<br>Please contact our admin team — they’ll set one up or reset it for you.</p>
+  </form>
+  <form id="gateR" class="gf" autocomplete="off" hidden>
+    <img src="logo.png" alt="" width="56" height="56">
+    <h2>Reset admin password</h2>
+    <p class="muted" id="gateRInfo"></p>
+    <input id="rCode" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="6-digit code from e-mail" aria-label="Verification code">
+    <input id="rPass" type="password" autocomplete="new-password" placeholder="New password (10+, letters and numbers)" aria-label="New password" maxlength="100">
+    <input id="rPass2" type="password" autocomplete="new-password" placeholder="Repeat new password" aria-label="Repeat new password" maxlength="100">
+    <p id="rMsg" class="err" role="alert"></p>
+    <button type="submit">Change password</button>
+    <button type="button" id="rBack" class="linkbtn">Back to sign in</button>
+  </form>
+  </div>
+</div>
+<button id="bTheme" class="navbtn" type="button" data-tip="Navigate" aria-label="Navigate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
 <div id="toast"></div>
-<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
 <script src="script.js"></script>
 </body>
 </html>
