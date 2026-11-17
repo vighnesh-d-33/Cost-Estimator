@@ -22,7 +22,7 @@ const POWDER_KEYS = ['n', 'p', 'dens', 'waste', 'ht', 'fp'];
 const MACHINE_HEADERS = ['Machine', 'Lasers', 'Price', 'Interest %', 'Years', 'Utilisation %', 'Fixed rate per hr'];
 const MACHINE_KEYS = ['n', 'laser', 'price', 'rate', 'yrs', 'util', 'fixed'];
 const USER_HEADERS = ['Username', 'Salt', 'Password hash', 'Role', 'Active', 'Created', 'Email', 'L1 name', 'L1 email', 'L2 name', 'L2 email', 'L3 name', 'L3 email'];
-const APPROVAL_HEADERS = ['Quote ID', 'Status', 'Level', 'Prepared by', 'Prepared email', 'Customer', 'Part', 'Per part', 'Round-off', 'L1 name', 'L1 email', 'L2 name', 'L2 email', 'L3 name', 'L3 email', 'Token', 'Sent', 'Log JSON'];
+const APPROVAL_HEADERS = ['Quote ID', 'Status', 'Level', 'Prepared by', 'Prepared email', 'Customer', 'Part', 'Per part', 'Round-off', 'L1 name', 'L1 email', 'L2 name', 'L2 email', 'L3 name', 'L3 email', 'Token', 'Sent', 'Log JSON', 'State hash'];
 const SITE_URL = '';   // <-- type the website address here (shown in e-mails as a link back to the site)
 const EMAIL_RE = /^[^\s@<>",;]+@[^\s@<>",;]+\.[A-Za-z]{2,}$/;
 const SETTINGS_HEADERS = ['Group', 'Key', 'Value'];
@@ -243,7 +243,7 @@ function cleanAp_(ap) {           // validates 3 approvers {name,email}; returns
     const name = String((a && a.name) || '').trim().slice(0, 60), email = String((a && a.email) || '').trim().toLowerCase().slice(0, 100);
     if (!name || !EMAIL_RE.test(email)) throw new Error('Level ' + (i + 1) + ' approver: enter a name and a valid e-mail');
     return { name: cell_(name, 60), email: email };
-  });
+  }).map((a, i, arr) => { if (arr.some((b, j) => j !== i && b.name.toLowerCase() === a.name.toLowerCase())) throw new Error('Each level needs a different person. ' + a.name + ' is used more than once.'); return a; });
 }
 function apAny_(ap) { return Array.isArray(ap) && ap.some(a => a && (String(a.name || '').trim() || String(a.email || '').trim())); }
 function userByEmail_(email) {    // active user whose Email column matches -> user name, else ''
@@ -298,15 +298,22 @@ function sendApproval_(d, sess) {
   const r = q.getRange(2, 1, n - 1, 18).getValues().filter(x => String(x[0]) === String(d.id))[0];
   if (!r) return { ok: false, error: 'Save the quote first' };
   if (String(r[17] || '') !== sess.u && !(sess.role === 'admin' && !r[17])) return { ok: false, error: 'This quote belongs to another user' };
-  const me = findUser_(sess.u), ap = me.ap;
-  if (ap.some(a => !a.name || !EMAIL_RE.test(a.email))) return { ok: false, error: 'No approvers are set for you. Ask the admin to add 3 approvers in the Users tab.' };
-  for (let i = 0; i < 3; i++) if (!userByEmail_(ap[i].email)) return { ok: false, error: 'Level ' + (i + 1) + ' approver (' + ap[i].name + ') has no login. Ask the admin to create a user with the e-mail ' + ap[i].email + '.' };
+  const me = findUser_(sess.u);
+  if (me.ap.some(x => !x.name)) return { ok: false, error: 'No approvers are set for you. Ask the admin to choose 3 approvers in Users > Edit.' };
+  const ap = me.ap.map(x => { const nm = String(x.name).trim().toLowerCase(), u = findUser_(nm);
+    return { name: nm, email: u ? String(u.email || '').trim().toLowerCase() : '', ok: !!u && u.active && u.role === 'approver' && EMAIL_RE.test(String(u.email || '').trim()) }; });
+  for (let i = 0; i < 3; i++) if (!ap[i].ok) return { ok: false, error: 'Level ' + (i + 1) + ' approver "' + ap[i].name + '" is not an active Approver login with an e-mail. Ask the admin to choose the approvers again in Users > Edit.' };
+  if (new Set(ap.map(x => x.name)).size !== 3) return { ok: false, error: 'Each level needs a different person. Ask the admin to fix your approvers.' };
+  if (ap.some(x => x.name === sess.u)) return { ok: false, error: 'You cannot be your own approver. Ask the admin to fix your approvers.' };
+  const hash = hex_(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256, String(r[16]))).slice(0, 40);
   const old = findApproval_(d.id);
-  if (old && old.v[1] === 'PENDING') return { ok: false, error: 'This quote is already waiting for approval (Level ' + old.v[2] + ')' };
+  if (old && old.v[1] === 'REJECTED' && String(old.v[18] || '') === hash) return { ok: false, error: 'This quote was rejected. Update it as the remarks ask, then send for approval again.' };
+  const stale = !!old && old.v[1] === 'PENDING' && ![9, 11, 13].every(c => { const u = findUser_(String(old.v[c]).trim().toLowerCase()); return !!u && u.role === 'approver'; });
+  if (old && old.v[1] === 'PENDING' && !stale) return { ok: false, error: 'This quote is already waiting for approval (Level ' + old.v[2] + ')' };
   if (old && old.v[1] === 'APPROVED') return { ok: false, error: 'This quote is already fully approved' };
   const now = new Date();
   const row = [String(d.id), 'PENDING', 1, sess.u, me.email, r[2], r[3], r[15], r[14], ap[0].name, ap[0].email, ap[1].name, ap[1].email, ap[2].name, ap[2].email, '', now,
-    JSON.stringify([{ t: now.toISOString(), e: 'SENT', who: sess.u, note: 'Sent for approval' }])];
+    JSON.stringify([{ t: now.toISOString(), e: 'SENT', who: sess.u, note: 'Sent for approval' }]), hash];
   const sh = sheet_('Approvals', APPROVAL_HEADERS);
   if (old) sh.getRange(old.row, 1, 1, row.length).setValues([row]); else sh.appendRow(row);
   SpreadsheetApp.flush();
@@ -314,22 +321,35 @@ function sendApproval_(d, sess) {
   if (me.email) send_(me.email, 'Quote sent for approval: ' + (r[3] || r[0]), mailMsg_('Sent for approval', '#14262b', ['Your quote was sent to <b>' + esc_(ap[0].name) + '</b> (Level 1).'].concat(summaryLines_(row))));
   audit_('APPROVAL_SENT', d.id); return { ok: true, approval: approvalView_(a) };
 }
-function myEmail_(sess) { const u = findUser_(sess.u); return u ? String(u.email || '').trim().toLowerCase() : ''; }
-function isApproverNow_(v, email) { const lvl = +v[2]; return v[1] === 'PENDING' && !!email && lvl >= 1 && lvl <= 3 && String(v[8 + lvl * 2]).trim().toLowerCase() === email; }
-function myApprovals_(sess) {     // requests waiting for the signed-in approver
+function myEmail_(sess) { return String(sess.u || '').trim().toLowerCase(); }   // the signed-in user name (approvers are matched by login name, not by e-mail)
+function isApproverNow_(v, email) { const lvl = +v[2]; return v[1] === 'PENDING' && !!email && lvl >= 1 && lvl <= 3 && String(v[7 + lvl * 2]).trim().toLowerCase() === email; }
+function myStatus_(v, email) {    // what this approver (by e-mail) has done / must do on this approval row
+  if (!email) return { mine: '', myLvl: 0, when: '' };
+  if (isApproverNow_(v, email)) return { mine: 'PENDING', myLvl: +v[2], when: v[16] instanceof Date ? v[16].toISOString() : String(v[16]) };
+  const log = logOf_(v); let mine = '', myLvl = 0, when = '';
+  [1, 2, 3].filter(L => String(v[7 + L * 2]).trim().toLowerCase() === email).forEach(L => {
+    const e = log.filter(x => x.lvl === L && (x.e === 'APPROVED' || x.e === 'REJECTED')).pop(); if (e) { mine = e.e; myLvl = L; when = e.t; } });
+  return { mine: mine, myLvl: myLvl, when: String(when) };
+}
+function myApprovals_(sess) {     // quotes waiting for me (first) and quotes I already decided
   const email = myEmail_(sess), sh = sheet_('Approvals', APPROVAL_HEADERS), n = sh.getLastRow(), out = [];
-  if (n > 1 && email) sh.getRange(2, 1, n - 1, APPROVAL_HEADERS.length).getValues().forEach(v => { if (isApproverNow_(v, email)) out.push(approvalView_({ v: v })); });
-  return { ok: true, items: out.reverse() };
+  if (n > 1 && email) sh.getRange(2, 1, n - 1, APPROVAL_HEADERS.length).getValues().forEach(v => {
+    const m = myStatus_(v, email); if (!m.mine) return;
+    const it = approvalView_({ v: v }); it.mine = m.mine; it.myLevel = m.myLvl; it.when = m.when; out.push(it);
+  });
+  out.sort((x, y) => (x.mine === 'PENDING') !== (y.mine === 'PENDING') ? (x.mine === 'PENDING' ? -1 : 1) : String(y.when).localeCompare(String(x.when)));
+  return { ok: true, items: out, pending: out.filter(x => x.mine === 'PENDING').length };
 }
 function approvalDetail_(d, sess) {
   if (!ID_RE.test(String(d.id))) return { ok: false, error: 'Invalid id' };
   const a = findApproval_(d.id); if (!a) return { ok: false, error: 'Not found' };
-  const email = myEmail_(sess), v = a.v, isApprover = [10, 12, 14].some(c => String(v[c]).trim().toLowerCase() === email && !!email);
+  const email = myEmail_(sess), v = a.v, isApprover = [9, 11, 13].some(c => String(v[c]).trim().toLowerCase() === email && !!email);
   if (!(isApprover || String(v[3]) === sess.u || sess.role === 'admin')) return { ok: false, error: 'Not allowed' };
   const q = sheet_('Quotes', QUOTE_HEADERS), n = q.getLastRow(), r = n > 1 ? q.getRange(2, 1, n - 1, 18).getValues().filter(x => String(x[0]) === String(d.id))[0] : null;
   if (!r) return { ok: false, error: 'The quote was deleted' };
   let state; try { state = JSON.parse(r[16]); } catch (e) { return { ok: false, error: 'Quote data unreadable' }; }
-  return { ok: true, approval: approvalView_(a), canDecide: isApproverNow_(v, email), state: state, saved: r[1] instanceof Date ? r[1].toISOString() : String(r[1]), image: getImg_(String(d.id)) };
+  const ms = myStatus_(v, email);
+  return { ok: true, approval: approvalView_(a), canDecide: isApproverNow_(v, email), mine: ms.mine, myLevel: ms.myLvl, state: state, saved: r[1] instanceof Date ? r[1].toISOString() : String(r[1]), image: getImg_(String(d.id)) };
 }
 function decide_(d, sess) {       // approve / reject by a signed-in approver; remarks are compulsory for both
   const a = findApproval_(d.id); if (!a) return { ok: false, error: 'Not found' };

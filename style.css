@@ -174,3 +174,35 @@ tr.yel td{background:transparent}
 .apsteps li.ok{background:#cdeed6;color:#14602b}.apsteps li.now{background:#ffe9a8;color:#6b4e00}.apsteps li.no{background:#ffd3cf;color:#8f1a12}
 .aprem{margin:8px 0 0;padding:8px;border-left:3px solid #b3261e;background:rgba(179,38,30,.1);font-size:13px;white-space:pre-wrap}
 .aph{font-size:14px;margin:14px 0 4px}
+
+.badge{margin-left:4px}
+.apdet{margin-top:16px;padding:14px;border:1px solid var(--line);border-radius:var(--r)}
+.apdet h3{margin:0 0 10px;font-size:16px}
+.apgrid{display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start}.apgrid>div:first-child{flex:1 1 320px}
+.apkv{width:100%;border-collapse:collapse}.apkv th{width:42%;font-weight:500;color:var(--mut)}.apkv th,.apkv td{padding:4px 8px;border-bottom:1px solid var(--line)}
+.aplog{margin:4px 0 0;padding-left:18px;font-size:13px}
+.aprl{display:block;margin-top:12px;font-size:13px}.aprl textarea{display:block;width:100%;margin-top:4px;padding:8px;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+button.apok{background:#1b7f3b}button.apno{background:#b3261e}
+
+/* ---- approvals: alignment, search, full-screen quote page ---- */
+#apTbl th,#apTbl td{text-align:left;vertical-align:middle}#apTbl th.r,#apTbl td.r{text-align:right}
+#apTbl td:last-child,#apTbl th:last-child{text-align:right}
+#apTbl tr.aprow-p td{background:rgba(255,233,168,.07)}
+.sm{font-size:11px;margin-top:2px}
+.aptools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.aptools input[type=search]{flex:1 1 260px;max-width:420px;padding:8px 10px;font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:var(--r)}
+.appage{position:fixed;inset:0;z-index:50;overflow:auto;background:var(--paper);color:var(--ink)}
+.appage[hidden]{display:none}
+.apbar{position:sticky;top:0;z-index:2;display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--card);border-bottom:1px solid var(--line)}
+.apbar h2{margin:0;font-size:17px}
+.apwrap{max-width:980px;margin:0 auto;padding:18px 20px 60px}
+.apkv th,.apkv td{text-align:left;vertical-align:top}.apkv th{width:38%}
+.aptbl th,.aptbl td{text-align:left}.aptbl th.r,.aptbl td.r{text-align:right}
+.aptbl tfoot th{text-align:left}
+
+/* Send approval: floating button just before the Navigate button */
+.floatappr{position:fixed;right:66px;top:calc(var(--hdr,104px) + 14px);z-index:30;height:42px;padding:0 18px;border-radius:21px;font-weight:600;box-shadow:0 4px 14px rgba(0,0,0,.38)}
+.navbtn::after{right:0;top:calc(100% + 8px);transform:none}
+@media(max-width:900px){.floatappr{top:auto;bottom:18px}}
+
+.apnotice{margin:0 0 14px;padding:10px 12px;border-radius:var(--r);background:rgba(27,127,59,.16);border:1px solid rgba(27,127,59,.5);font-weight:600}

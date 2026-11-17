@@ -23,7 +23,6 @@
     <button id="bNew" class="ghost">New quote</button>
     <button id="bOut" class="ghost" hidden>Sign out</button>
     <button id="bSave">Save quote</button>
-    <button id="bAppr" class="ghost" title="Save the quote, then e-mail it to your 3 approvers one after another">Send approval</button>
     <div class="dl"><button id="bDl" class="ghost" aria-haspopup="true" aria-expanded="false">Download</button>
       <div id="dlMenu" hidden><button data-dl="xlsx">Excel (.xlsx)</button><button data-dl="pdf">PDF (.pdf)</button></div></div>
   </div>
@@ -93,7 +92,7 @@
 </main>
 
 <section class="card wide">
-  <nav class="tabs"><button data-t="t1" class="on">Machine hour rates</button><button data-t="t7">Machine list</button><button data-t="t4">Powder / material list</button><button data-t="t2">Loan calculator</button><button data-t="t3">Values</button><button data-t="t9" id="tabAppr">Approvals</button><button data-t="t6">Saved quotes</button><button data-t="t8" id="tabUsers" hidden>Users</button></nav>
+  <nav class="tabs"><button data-t="t1" class="on">Machine hour rates</button><button data-t="t7">Machine list</button><button data-t="t4">Powder / material list</button><button data-t="t2">Loan calculator</button><button data-t="t3">Values</button><button data-t="t9" id="tabAppr" hidden>Approvals</button><button data-t="t6">Saved quotes</button><button data-t="t8" id="tabUsers" hidden>Users</button></nav>
   <div id="t1" class="tab on"><div id="machines" class="grid3"></div></div>
   <div id="t7" class="tab"><div class="scroll"><table id="kTbl"></table></div><button id="kAdd" class="ghost">Add machine</button> <button id="kSave">Save</button>
     <p class="muted">Selecting a machine fills its finance values and laser type. A fixed rate per hour overrides the EMI-based machine hour rate (blank = use EMI).</p></div>
@@ -120,21 +119,22 @@
       <label>E-mail (needed for approvers; gets status mails)<input id="uMail" type="email" maxlength="100" autocomplete="off"></label></div>
     <div id="apLv"><h3 class="aph">Approvers for this user's quotes (Level 1 → 2 → 3). Required for a User; not needed for an Approver login.</h3>
     <div class="grid">
-      <label>Level 1 – name<input id="a1n" type="text" maxlength="60" autocomplete="off"></label><label>Level 1 – e-mail<input id="a1e" type="email" maxlength="100" autocomplete="off"></label>
-      <label>Level 2 – name<input id="a2n" type="text" maxlength="60" autocomplete="off"></label><label>Level 2 – e-mail<input id="a2e" type="email" maxlength="100" autocomplete="off"></label>
-      <label>Level 3 – name<input id="a3n" type="text" maxlength="60" autocomplete="off"></label><label>Level 3 – e-mail<input id="a3e" type="email" maxlength="100" autocomplete="off"></label></div></div>
+      <label>Level 1 approver<select id="a1s"></select></label>
+      <label>Level 2 approver<select id="a2s"></select></label>
+      <label>Level 3 approver<select id="a3s"></select></label></div></div>
     <p><button id="uSave">Add user / set password</button> <button id="uAp" class="ghost">Save e-mail &amp; approvers only</button></p>
     <div class="scroll"><table id="uTbl"><thead><tr><th>User name</th><th>Role</th><th>Status</th><th>Approvers (L1 → L2 → L3)</th><th></th></tr></thead><tbody></tbody></table></div></div>
-  <div id="t9" class="tab"><p class="muted">Quotes waiting for <b>your</b> approval. Select one to see its details. <button id="apRefresh" class="ghost">Refresh</button></p>
-    <div class="scroll"><table id="apTbl"><thead><tr><th>Sent</th><th>Level</th><th>Customer</th><th>Part</th><th>Per part</th><th>Prepared by</th><th></th></tr></thead><tbody></tbody></table></div>
-    <div id="apDet" class="apdet" hidden>
-      <h3 id="apDetT"></h3><div id="apDetBody"></div>
-      <label class="aprl">Remarks (compulsory for approve and reject)<textarea id="apRem" maxlength="500" rows="3" placeholder="Type your remarks / changes"></textarea></label>
-      <p id="apDetBtns"><button id="apOk" class="apok">Approve</button> <button id="apNo" class="apno">Reject</button> <button id="apClose" class="ghost">Close</button></p>
-    </div></div>
+  <div id="t9" class="tab"><div class="aptools"><input id="apSearch" type="search" placeholder="Search customer, part, prepared by, status…" aria-label="Search approvals" autocomplete="off"><button id="apRefresh" class="ghost">Refresh</button><span class="muted" id="apCount"></span></div>
+    <div class="scroll"><table id="apTbl"><thead><tr><th>Sent</th><th>Level</th><th>Customer</th><th>Part</th><th class="r">Per part</th><th>Prepared by</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div></div>
   <div id="t6" class="tab"><p class="muted">Only the quotes you saved are listed here. <button id="qRefresh" class="ghost">Refresh</button> <b id="qCount"></b></p><div class="scroll"><table id="qTbl"><thead><tr><th>Saved</th><th>Customer</th><th>Part</th><th>Machine / material</th><th>Per part</th><th>Saved by</th><th>Approval</th><th></th></tr></thead><tbody></tbody></table></div></div>
 </section>
 <footer class="foot">© amace solutions pvt.ltd · Metal printing cost estimator · Estimates only</footer>
+<div id="apDet" class="appage" hidden role="dialog" aria-modal="true" aria-labelledby="apDetT">
+  <div class="apbar"><button id="apClose" class="ghost">← Back to approvals</button><h2 id="apDetT"></h2></div>
+  <div class="apwrap"><div id="apDetBody"></div>
+    <label class="aprl">Remarks (compulsory for approve and reject)<textarea id="apRem" maxlength="500" rows="3" placeholder="Type your remarks / changes"></textarea></label>
+    <p id="apDetBtns"><button id="apOk" class="apok">Approve</button> <button id="apNo" class="apno">Reject</button></p></div>
+</div>
 <div id="gate" hidden role="dialog" aria-modal="true" aria-labelledby="gateT">
   <div class="gate-media" aria-hidden="true"><video id="gateVid" poster="exploded_doors_clear_poster.jpg?v=2" muted loop playsinline autoplay preload="auto" disablepictureinpicture tabindex="-1"><source src="exploded_doors_clear_1080.mp4?v=3" type="video/mp4"><source src="exploded_doors_clear_2560.mp4?v=2" type="video/mp4"></video></div>
   <div class="gate-side">
@@ -161,6 +161,7 @@
   </form>
   </div>
 </div>
+<button id="bAppr" class="floatappr" type="button" title="Save the quote, then e-mail it to your 3 approvers one after another">Send approval</button>
 <button id="bTheme" class="navbtn" type="button" data-tip="Navigate" aria-label="Navigate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></button>
 <div id="toast"></div>
 <script src="script.js"></script>

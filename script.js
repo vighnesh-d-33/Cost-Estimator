@@ -389,7 +389,7 @@ const AP_TXT = { PENDING: 'Waiting', APPROVED: 'Approved', REJECTED: 'Rejected' 
 function apHistory(a) { return (a.log || []).map(l => new Date(l.t).toLocaleString('en-IN') + ' – ' + l.e + (l.lvl ? ' L' + l.lvl : '') + (l.who ? ' (' + l.who + ')' : '') + (l.note ? ': ' + l.note : '')).join('\n'); }
 function apChip(id) {
   const a = window._ap[id]; if (!a) return '<span class="muted">–</span>';
-  const t = a.status === 'PENDING' ? 'Waiting – Level ' + a.level : a.status === 'REJECTED' ? 'Rejected – Level ' + a.level : 'Approved (3/3)';
+  const t = a.status === 'PENDING' ? 'Waiting – Level ' + a.level + ((a.approvers[a.level - 1] || {}).name ? ': ' + a.approvers[a.level - 1].name : '') : a.status === 'REJECTED' ? 'Rejected – Level ' + a.level : 'Approved (3/3)';
   return `<span class="chip ${esc(a.status.toLowerCase())}" title="${esc(apHistory(a))}">${esc(t)}</span>`;
 }
 async function loadApprovals(paint = true) {
@@ -423,48 +423,70 @@ $('#bAppr').onclick = async () => {
   } catch (e) { if (e.auth) return showGate(e.message); toast(e.message); } finally { btn.disabled = false; }
 };
 
-/* ===== Approver screen: requests waiting for me, quote details, approve / reject (remarks compulsory) ===== */
+/* ===== Approver screen: list (pending first), search, full-screen quote page, approve / reject ===== */
 window._myAp = []; let apCur = '';
 const apLabel = n => ['Machine cost', 'Preparation & cooling', 'Powder cost', 'Filter cost', 'Recoater cost', 'Wire cut cost', 'Support removal', 'Power cost', 'Gas–air cost', 'Heat treatment', 'Furnace power', 'Machine operator'][n] || 'Item ' + (n + 1);
+function apOverall(a) {
+  if (a.status === 'APPROVED') return 'Fully approved (3/3)';
+  if (a.status === 'REJECTED') return 'Rejected at Level ' + a.level + ' – waiting for ' + a.by + ' to update';
+  const nm = (a.approvers[a.level - 1] || {}).name || '';
+  return a.mine === 'PENDING' ? 'Now at Level ' + a.level + ' (you)' : 'Sent to Level ' + a.level + (nm ? ': ' + nm : '');
+}
+function apNotice(r) {      // message shown instead of the buttons when this person cannot decide
+  const a = r.approval, nm = (a.approvers[a.level - 1] || {}).name || '';
+  if (r.mine === 'APPROVED') return '✔ Already approved by you (Level ' + r.myLevel + '). ' + (a.status === 'PENDING' ? 'Sent to Level ' + a.level + (nm ? ': ' + nm : '') + '. Only that person can approve it now.' : a.status === 'APPROVED' ? 'All 3 levels have approved this quote.' : 'It was later rejected at Level ' + a.level + '.');
+  if (r.mine === 'REJECTED') return '✖ You rejected this quote. ' + a.by + ' must update it and send it for approval again.';
+  return apOverall(a);
+}
+function apWho(a) { const e = (a.log || []).filter(l => l.lvl === a.myLevel && (l.e === 'APPROVED' || l.e === 'REJECTED')).pop(); return e ? e.who : ''; }
+function apRows() {
+  const q = $('#apSearch').value.trim().toLowerCase();
+  const list = window._myAp.filter(a => !q || [a.customer, a.part, a.by, a.mine, a.status, apOverall(a), apWho(a), a.id].join(' ').toLowerCase().includes(q));
+  const pend = window._myAp.filter(a => a.mine === 'PENDING').length;
+  $('#tabAppr').textContent = 'Approvals' + (pend ? ' (' + pend + ')' : '');
+  $('#apCount').textContent = pend + ' pending · ' + (window._myAp.length - pend) + ' done';
+  $('#apTbl tbody').innerHTML = list.map(a => {
+    const st = a.mine === 'PENDING' ? '<span class="chip pending">Waiting for you</span>' : `<span class="chip ${a.mine === 'APPROVED' ? 'approved' : 'rejected'}">${a.mine === 'APPROVED' ? 'Approved' : 'Rejected'} by ${esc(apWho(a) || 'you')}</span>`;
+    return `<tr class="${a.mine === 'PENDING' ? 'aprow-p' : ''}"><td>${new Date(a.sent).toLocaleString('en-IN')}</td><td>Level ${a.myLevel}</td><td>${esc(a.customer || '–')}</td><td>${esc(a.part || '–')}</td><td class="r">${inr2(a.perPart)}</td><td>${esc(a.by)}</td><td>${st}<div class="muted sm">${esc(apOverall(a))}</div></td><td><button class="${a.mine === 'PENDING' ? '' : 'ghost'}" data-apopen="${esc(a.id)}">${a.mine === 'PENDING' ? 'Review' : 'View'}</button></td></tr>`;
+  }).join('') || `<tr><td colspan="8">${window._myAp.length ? 'No quote matches your search.' : 'No quotes have been sent to you yet.'}</td></tr>`;
+}
 async function loadMyApprovals() {
-  if (!api() || !TOKEN) return;
-  const body = $('#apTbl tbody');
-  try {
-    const r = await call('myApprovals'); if (!r.ok) throw new Error(r.error); window._myAp = r.items || [];
-    $('#tabAppr').textContent = 'Approvals' + (window._myAp.length ? ' (' + window._myAp.length + ')' : '');
-    body.innerHTML = window._myAp.map(a => `<tr><td class="l">${new Date(a.sent).toLocaleString('en-IN')}</td><td class="l">Level ${a.level}</td><td class="l">${esc(a.customer || '–')}</td><td class="l">${esc(a.part || '–')}</td><td>${inr2(a.perPart)}</td><td class="l">${esc(a.by)}</td><td><button class="ghost" data-apopen="${esc(a.id)}">Open</button></td></tr>`).join('') || '<tr><td colspan="7" class="l">No quotes are waiting for your approval.</td></tr>';
-  } catch (e) { if (e.auth) return showGate(e.message); body.innerHTML = '<tr><td colspan="7" class="l">Could not load: ' + esc(e.message) + '</td></tr>'; }
+  if (!api() || !TOKEN || ROLE !== 'approver') return;
+  try { const r = await call('myApprovals'); if (!r.ok) throw new Error(r.error); window._myAp = r.items || []; apRows(); }
+  catch (e) { if (e.auth) return showGate(e.message); $('#apTbl tbody').innerHTML = '<tr><td colspan="8">Could not load: ' + esc(e.message) + '</td></tr>'; }
 }
 function apDetailHtml(r) {
   const keep = S; let o, i; try { S = cleanState(r.state); i = S.i; o = calc(); } finally { S = keep; }
-  const kv = (k, v) => `<tr><th class="l">${esc(k)}</th><td class="l">${esc(v ?? '–')}</td></tr>`;
-  const rows = o.rows.map((x, n) => `<tr><td>${n + 1}</td><td class="l">${esc(apLabel(n))}</td><td>${num(x.q)}</td><td>${num(x.r)}</td><td>${inr(x.t)}</td></tr>`).join('');
+  const kv = (k, v) => `<tr><th>${esc(k)}</th><td>${esc(v ?? '–')}</td></tr>`;
+  const rows = o.rows.map((x, n) => `<tr><td>${n + 1}</td><td>${esc(apLabel(n))}</td><td class="r">${num(x.q)}</td><td class="r">${num(x.r)}</td><td class="r">${inr(x.t)}</td></tr>`).join('');
   const log = (r.approval.log || []).map(l => `<li>${esc(new Date(l.t).toLocaleString('en-IN'))} – <b>${esc(l.e)}</b>${l.lvl ? ' L' + l.lvl : ''} (${esc(l.who)})${l.note ? ': ' + esc(l.note) : ''}</li>`).join('');
-  return `<div class="apgrid"><div><table class="apkv">${kv('Customer', i.customer)}${kv('Part / drawing', i.part)}${kv('Machine', i.machine)}${kv('Material', i.material)}${kv('Lasers', i.laser)}${kv('Parts / build', i.parts)}${kv('Layer (µm)', i.layer)}${kv('Print time (hrs)', num(o.printHrs))}${kv('Material kg / build', i.kg)}${kv('Sets / units', (i.sets || 1) + ' / ' + (i.units || 1))}${kv('Prepared by', r.approval.by)}</table></div>
+  return `<div class="apgrid"><div><table class="apkv">${kv('Customer', i.customer)}${kv('Part / drawing', i.part)}${kv('Machine', i.machine)}${kv('Material', i.material)}${kv('Lasers', i.laser)}${kv('Parts / build', i.parts)}${kv('Layer (µm)', i.layer)}${kv('Print time (hrs)', num(o.printHrs))}${kv('Material kg / build', i.kg)}${kv('Sets / units', (i.sets || 1) + ' / ' + (i.units || 1))}${kv('Prepared by', r.approval.by)}${kv('Status', apOverall({ ...r.approval, mine: r.mine }))}</table></div>
     ${r.image && IMG_RE.test(r.image) ? `<div class="imgbox"><img alt="Model image" src="${r.image}"></div>` : ''}</div>
-    <div class="scroll"><table class="aptbl"><thead><tr><th>Sl.</th><th>Items</th><th>No. of units</th><th>Per unit cost</th><th>Total cost (Rs.)</th></tr></thead><tbody>${rows}</tbody>
-    <tfoot><tr><th colspan="4" class="l">Total cost</th><td>${inr(o.total)}</td></tr><tr><th colspan="4" class="l">Margin</th><td>${inr(o.margin)}</td></tr><tr><th colspan="4" class="l">Total round-off</th><td>${inr(o.round)}</td></tr><tr><th colspan="4" class="l">Per part cost</th><td>${inr2(o.perPart)}</td></tr></tfoot></table></div>
-    <p class="muted"><b>History</b></p><ul class="aplog">${log}</ul>`;
+    <h3 class="aph">Cost breakdown</h3><div class="scroll"><table class="aptbl"><thead><tr><th>Sl.</th><th>Items</th><th class="r">No. of units</th><th class="r">Per unit cost</th><th class="r">Total cost (Rs.)</th></tr></thead><tbody>${rows}</tbody>
+    <tfoot><tr><th colspan="4">Total cost</th><td class="r">${inr(o.total)}</td></tr><tr><th colspan="4">Margin</th><td class="r">${inr(o.margin)}</td></tr><tr><th colspan="4">Total round-off</th><td class="r">${inr(o.round)}</td></tr><tr><th colspan="4">Per part cost</th><td class="r">${inr2(o.perPart)}</td></tr></tfoot></table></div>
+    <h3 class="aph">History</h3><ul class="aplog">${log}</ul>`;
 }
+function closeAp() { $('#apDet').hidden = true; document.body.style.overflow = ''; apCur = ''; }
 async function openApproval(id) {
   try {
     const r = await call('approvalDetail', { id }); if (!r.ok) throw new Error(r.error);
-    apCur = id; $('#apDetT').textContent = 'Level ' + r.approval.level + ' approval – ' + (r.approval.customer || '') + ' / ' + (r.approval.part || '');
-    $('#apDetBody').innerHTML = apDetailHtml(r); $('#apRem').value = ''; $('#apDet').hidden = false; $('#apDetBtns').hidden = !r.canDecide; $('#apRem').parentElement.hidden = !r.canDecide;
-    $('#apDet').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    apCur = id; $('#apDetT').textContent = (r.canDecide ? 'Level ' + r.approval.level + ' approval' : 'Quote details') + ' – ' + (r.approval.customer || '') + ' / ' + (r.approval.part || '');
+    $('#apDetBody').innerHTML = (r.canDecide ? '' : `<p class="apnotice">${esc(apNotice(r))}</p>`) + apDetailHtml(r); $('#apRem').value = ''; $('#apDetBtns').hidden = !r.canDecide; $('#apRem').parentElement.hidden = !r.canDecide;
+    $('#apDet').hidden = false; $('#apDet').scrollTop = 0; document.body.style.overflow = 'hidden';
   } catch (e) { if (e.auth) return showGate(e.message); toast(e.message); }
 }
 async function decideApproval(decision) {
   const remarks = $('#apRem').value.trim(); if (remarks.length < 3) { $('#apRem').focus(); return toast('Remarks are compulsory – please type them'); }
-  if (!confirm(decision === 'approve' ? 'Approve this quote?' : 'Reject this quote and send your remarks to ' + 'the person who prepared it?')) return;
+  if (!confirm(decision === 'approve' ? 'Approve this quote?' : 'Reject this quote and send your remarks to the person who prepared it?')) return;
   const b = [$('#apOk'), $('#apNo')]; b.forEach(x => x.disabled = true);
   try {
     const r = await call('decide', { id: apCur, decision, remarks }); if (!r.ok) throw new Error(r.error);
-    toast(r.message); $('#apDet').hidden = true; apCur = ''; loadMyApprovals();
+    toast(r.message); closeAp(); loadMyApprovals();
   } catch (e) { if (e.auth) return showGate(e.message); toast(e.message); } finally { b.forEach(x => x.disabled = false); }
 }
-$('#apOk').onclick = () => decideApproval('approve'); $('#apNo').onclick = () => decideApproval('reject'); $('#apClose').onclick = () => { $('#apDet').hidden = true; };
-$('#apRefresh').onclick = () => loadMyApprovals();
+$('#apOk').onclick = () => decideApproval('approve'); $('#apNo').onclick = () => decideApproval('reject'); $('#apClose').onclick = closeAp;
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && !$('#apDet').hidden) closeAp(); });
+$('#apRefresh').onclick = () => loadMyApprovals(); $('#apSearch').addEventListener('input', apRows);
 document.addEventListener('click', e => { if (e.target.dataset.apopen) openApproval(e.target.dataset.apopen); });
 $('#tabAppr').addEventListener('click', () => loadMyApprovals());
 function openApprovalsTab() { $('#tabAppr').click(); }
@@ -493,7 +515,7 @@ const playVid = () => { gv.play().catch(() => {}); };   // plays silently in a l
 if (gate.hidden) gv.pause();   // already signed in: do not play the sign-in video in the background
 ['pointerdown', 'keydown', 'touchstart'].forEach(ev => addEventListener(ev, () => { if (!gate.hidden && gv.paused) playVid(); }, { passive: true }));   // if the browser blocked autoplay, the first click or key press starts it
 function resetView() {   // wipe everything the previous user had on screen, so the next sign-in starts with a fresh quote
-  S = BLANK(); curId = ''; setImage('', 0, 0, false); $('#imgMsg').textContent = ''; window._q = []; window._ap = {}; window._myAp = []; $('#apDet').hidden = true; $('#tabAppr').textContent = 'Approvals'; POW = []; MCH = []; applySettings(null);
+  S = BLANK(); curId = ''; setImage('', 0, 0, false); $('#imgMsg').textContent = ''; window._q = []; window._ap = {}; window._myAp = []; closeAp(); $('#tabAppr').textContent = 'Approvals'; POW = []; MCH = []; applySettings(null);
   ['#qTbl tbody', '#uTbl tbody'].forEach(k => { $(k).innerHTML = ''; }); $('#qCount').textContent = ''; ['#uName', '#uPass'].forEach(k => { $(k).value = ''; });
   $('#dlMenu').hidden = true; $('.tabs button').click();
   if (built) { fillSelects(); render(); listsUI(); }
@@ -529,7 +551,7 @@ $('#gateF').addEventListener('submit', async e => {
 });
 function logout(msg) {
   if (TOKEN && api()) fetch(API_URL, { method: 'POST', body: JSON.stringify({ action: 'logout', token: TOKEN }) }).catch(() => {});   // end the session on the server too
-  $('#bOut').hidden = true; TOKEN = ''; USER = ''; ROLE = ''; ['tk', 'un', 'rl'].forEach(k => sessionStorage.removeItem(k)); $('#tabUsers').hidden = true; if (api()) showGate(msg);
+  $('#bOut').hidden = true; TOKEN = ''; USER = ''; ROLE = ''; ['tk', 'un', 'rl'].forEach(k => sessionStorage.removeItem(k)); $('#tabUsers').hidden = true; $('#tabAppr').hidden = true; if (api()) showGate(msg);
 }
 $('#bOut').onclick = () => logout('Signed out.');
 /* ----- forgot password (admin): code is e-mailed to the address set in Code.gs ----- */
@@ -565,12 +587,21 @@ $('#gateR').addEventListener('submit', async e => {
 async function refreshUsers() {
   if (ROLE !== 'admin') return;
   try {
-    const r = await call('users'); if (!r.ok) throw new Error(r.error); window._u = r.users;
+    const r = await call('users'); if (!r.ok) throw new Error(r.error); window._u = r.users; fillApSel();
     $('#uTbl tbody').innerHTML = r.users.map(u => `<tr><td class="l">${esc(u.username)}</td><td class="l">${esc(u.role)}</td><td class="l">${u.active ? 'Active' : 'Disabled'}</td><td class="l">${u.role === 'approver' ? '<span class="muted">Approver login' + (u.email ? ' – ' + esc(u.email) : ' – no e-mail yet') + '</span>' : (u.ap || []).length && (u.ap || []).every(a => a.email) ? (u.ap || []).map(a => esc(a.name)).join(' → ') : '<span class="muted">not set</span>'}</td><td class="l"><button class="ghost" data-uapp="${esc(u.username)}">Edit</button> <button class="ghost" data-uedit="${esc(u.username)}">Set password</button> ${u.username === USER ? '' : `<button class="ghost" data-utog="${esc(u.username)}">${u.active ? 'Disable' : 'Enable'}</button>`}</td></tr>`).join('');
   } catch (e) { if (e.auth) return showGate(e.message); toast('Could not load users: ' + e.message); }
 }
-const apForm = () => { const list = [1, 2, 3].map(n => ({ name: $('#a' + n + 'n').value.trim(), email: $('#a' + n + 'e').value.trim() })); return { list, any: list.some(a => a.name || a.email) }; };
-const apClear = () => { ['#uMail', '#a1n', '#a1e', '#a2n', '#a2e', '#a3n', '#a3e'].forEach(k => { $(k).value = ''; }); };
+const apForm = () => { const list = [1, 2, 3].map(n => { const el = $('#a' + n + 's'), o = el.selectedOptions[0]; return { name: el.value && o ? o.dataset.n || '' : '', email: el.value }; }); return { list, any: list.some(a => a.email) }; };
+function fillApSel(cur) {      // dropdowns list the users created with role Approver
+  const appr = (window._u || []).filter(u => u.role === 'approver' && u.active && u.email);
+  [1, 2, 3].forEach(n => {
+    const el = $('#a' + n + 's'), c = cur ? cur[n - 1] : null, keep = c ? c.email : el.value;
+    el.innerHTML = '<option value="">Select approver…</option>' + appr.map(u => `<option value="${esc(u.email)}" data-n="${esc(u.username)}">${esc(u.username)} (${esc(u.email)})</option>`).join('');
+    if (keep && !appr.some(u => u.email === keep)) el.insertAdjacentHTML('beforeend', `<option value="${esc(keep)}" data-n="${esc(c ? c.name : keep)}">${esc(c ? c.name : keep)} (not an active approver)</option>`);
+    el.value = keep || '';
+  });
+}
+const apClear = () => { $('#uMail').value = ''; fillApSel([]); };
 const apToggle = () => { $('#apLv').hidden = $('#uRole').value === 'approver'; };
 $('#uRole').addEventListener('change', apToggle);
 $('#uAp').onclick = async () => {
@@ -593,10 +624,10 @@ document.addEventListener('click', async e => {
   if (t.dataset.uapp) {      // Edit: load role, e-mail and approvers into the form (password stays empty = unchanged)
     const u = find(t.dataset.uapp); if (!u) return;
     $('#uName').value = u.username; $('#uRole').value = u.role; $('#uMail').value = u.email || ''; $('#uPass').value = '';
-    [1, 2, 3].forEach(n => { $('#a' + n + 'n').value = (u.ap[n - 1] || {}).name || ''; $('#a' + n + 'e').value = (u.ap[n - 1] || {}).email || ''; });
+    fillApSel(u.ap || []);
     apToggle(); $('#uMail').scrollIntoView({ block: 'center', behavior: 'smooth' }); $('#uMail').focus(); toast('Edit ' + u.username + ', then click "Save e-mail & approvers only"');
   }
-  if (t.dataset.uedit) { $('#uName').value = t.dataset.uedit; const u = find(t.dataset.uedit); if (u) { $('#uRole').value = u.role; $('#uMail').value = u.email || ''; [1, 2, 3].forEach(n => { $('#a' + n + 'n').value = (u.ap[n - 1] || {}).name || ''; $('#a' + n + 'e').value = (u.ap[n - 1] || {}).email || ''; }); } apToggle(); $('#uPass').value = ''; $('#uPass').focus(); }
+  if (t.dataset.uedit) { $('#uName').value = t.dataset.uedit; const u = find(t.dataset.uedit); if (u) { $('#uRole').value = u.role; $('#uMail').value = u.email || ''; fillApSel(u.ap || []); } apToggle(); $('#uPass').value = ''; $('#uPass').focus(); }
   if (t.dataset.utog) {
     const u = find(t.dataset.utog); if (!u) return;
     try { const r = await call('userActive', { username: u.username, active: !u.active }); if (!r.ok) throw new Error(r.error); refreshUsers(); }
@@ -618,6 +649,7 @@ async function init() {
     POW = Array.isArray(r.materials) ? r.materials : []; MCH = Array.isArray(r.machines) ? r.machines : []; applySettings(r.settings);
   } catch (e) { if (e.auth) return showGate(e.message); toast('Could not load the price lists: ' + e.message); }
   if (!built) { buildTable(); buildMachines(); built = true; }
+  $('#tabAppr').hidden = !(api() && ROLE === 'approver'); $('#bAppr').hidden = ROLE === 'approver'; if ($('#tabAppr').hidden && $('#t9').classList.contains('on')) $('.tabs button').click();
   $('#tabUsers').hidden = !(api() && ROLE === 'admin'); if ($('#tabUsers').hidden && $('#t8').classList.contains('on')) $('.tabs button').click(); if (api() && ROLE === 'admin') refreshUsers();
   $('#bOut').hidden = !(api() && TOKEN); $('#bOut').textContent = 'Sign out' + (USER ? ' (' + USER + ')' : '');
   listsUI(); fillSelects(); render(); loan(); refreshList(); loadMyApprovals().then(() => { if (location.hash === '#approvals') openApprovalsTab(); });
