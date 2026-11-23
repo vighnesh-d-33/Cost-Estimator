@@ -287,8 +287,12 @@ function summaryLines_(v) {
     '<b>Per part cost:</b> ' + inr_(v[7]) + ' &nbsp; <b>Total round-off:</b> ' + inr_(v[8]), '<b>Prepared by:</b> ' + esc_(v[3])];
 }
 function siteLink_() { return SITE_URL ? SITE_URL.replace(/#.*$/, '') + '#approvals' : ''; }
+function curEmail_(username, stored) {   // the user's CURRENT e-mail from the Users tab (falls back to the one stored with the quote)
+  const u = username ? findUser_(String(username).trim().toLowerCase()) : null;
+  return u && EMAIL_RE.test(String(u.email || '').trim()) ? String(u.email).trim().toLowerCase() : String(stored || '');
+}
 function mailLevel_(a, lvl) {     // ask the approver of level lvl (1-3) to decide: they sign in to the website
-  const v = a.v, name = v[7 + lvl * 2], email = v[8 + lvl * 2];
+  const v = a.v, name = v[7 + lvl * 2], email = curEmail_(name, v[8 + lvl * 2]);
   send_(email, 'Approval needed (Level ' + lvl + '): quote ' + (v[6] || v[0]),
     mailMsg_('Quote approval - Level ' + lvl, '#7a1f3d', ['Dear ' + esc_(name) + ',', 'A cost quote is waiting for your approval.'].concat(summaryLines_(v), ['Sign in to the website with your user name (or e-mail) and password, open the <b>Approvals</b> tab and select this quote.']), siteLink_(), 'Open the website'));
 }
@@ -359,7 +363,7 @@ function decide_(d, sess) {       // approve / reject by a signed-in approver; r
   if (!isApproverNow_(v, email)) return { ok: false, error: 'This quote is not waiting for your approval.' };
   const remarks = String(d.remarks || '').trim().slice(0, 500);
   if (remarks.length < 3) return { ok: false, error: 'Remarks are compulsory. Please type them.' };
-  const lvl = +v[2], log = logOf_(v), who = v[7 + lvl * 2], now = new Date(), mail = v[4], sum = summaryLines_(v);
+  const lvl = +v[2], log = logOf_(v), who = v[7 + lvl * 2], now = new Date(), mail = curEmail_(v[3], v[4]), sum = summaryLines_(v);
   log.push({ t: now.toISOString(), e: decision === 'approve' ? 'APPROVED' : 'REJECTED', lvl: lvl, who: who, note: cell_(remarks, 500) });
   if (decision === 'reject') {
     a.sh.getRange(a.row, 2, 1, 2).setValues([['REJECTED', lvl]]); a.sh.getRange(a.row, 18).setValue(JSON.stringify(log));
@@ -373,7 +377,7 @@ function decide_(d, sess) {       // approve / reject by a signed-in approver; r
     audit_('APPROVAL_L' + lvl, d.id, sess.u); return { ok: true, message: 'Approved. The quote went to Level ' + (lvl + 1) + ' (' + v[9 + lvl * 2] + ').' };
   }
   a.sh.getRange(a.row, 2, 1, 2).setValues([['APPROVED', 3]]); a.sh.getRange(a.row, 18).setValue(JSON.stringify(log));
-  const all = [mail, v[10], v[12], v[14]].filter((x, i, arr) => x && arr.indexOf(x) === i).join(',');
+  const all = [mail, curEmail_(v[9], v[10]), curEmail_(v[11], v[12]), curEmail_(v[13], v[14])].filter((x, i, arr) => x && arr.indexOf(x) === i).join(',');
   if (all) send_(all, 'Quote FULLY APPROVED: ' + (v[6] || v[0]), mailMsg_('Quote fully approved', '#1b7f3b', ['All 3 levels have approved this quote.', '<b>Level 3 remarks:</b> ' + esc_(remarks)].concat(sum)));
   audit_('APPROVAL_DONE', d.id, sess.u); return { ok: true, message: 'Approved. This was the final level - everyone has been notified.' };
 }
@@ -429,7 +433,7 @@ function handle_(d, sess) {
       if (d.image !== undefined && (typeof d.image !== 'string' || (d.image !== '' && (d.image.length > MAX_IMG || !IMG_RE.test(d.image))))) return { ok: false, error: 'Picture not accepted (use a smaller JPG/PNG)' };
       const sh = sheet_('Quotes', QUOTE_HEADERS), i = d.state.i;
       const row = [String(d.id), cell_(d.saved, 40), cell_(i.customer, 200), cell_(i.part, 200), cell_(i.machine, 100), cell_(i.material, 100), cell_(i.laser, 50),
-        num_(i.parts), num_(i.layer), (num_(i.days) || 0) * 24 + (num_(i.hrs) || 0), num_(i.kg), num_(i.sets), num_(i.units), num_(d.total), num_(d.round), num_(d.perPart), stateJson].map(v => v === null ? '' : v);
+        num_(i.parts), num_(i.layer), (num_(i.days) || 0) * 24 + (num_(i.hrs) || 0) + (num_(i.mins) || 0) / 60, num_(i.kg), num_(i.sets), num_(i.units), num_(d.total), num_(d.round), num_(d.perPart), stateJson].map(v => v === null ? '' : v);
       if (!sh.getRange(1, 18).getValue()) sh.getRange(1, 18).setValue('Saved by');      // older sheets get the new column header
       const ids = sh.getRange(2, 1, Math.max(sh.getLastRow() - 1, 1), 1).getValues().map(r => r[0]), at = ids.indexOf(String(d.id));
       row.push(sess.u);

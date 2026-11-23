@@ -29,9 +29,9 @@ const KEYS = { i: 'prep wire supHrs supRate filter recoater kw pRate gasF gRate 
 const SHARED = Object.fromEntries(Object.entries(KEYS).map(([g, ks]) => [g, Object.fromEntries(ks.map(k => [k, null]))]));   // filled by applySettings() after sign-in
 function applySettings(st) { for (const g in KEYS) for (const k of KEYS[g]) { const v = st && st[g] ? st[g][k] : null; SHARED[g][k] = v === null || v === undefined || v === '' || !Number.isFinite(+v) ? null : +v; } }
 const nul = o => Object.fromEntries(Object.keys(o).map(k => [k, null]));
-const BLANK = () => ({ i: { machine: '', material: '', customer: '', part: '', laser: '', parts: null, layer: null, days: null, hrs: null, kg: null, sets: null, units: null,
+const BLANK = () => ({ i: { machine: '', material: '', customer: '', part: '', laser: '', parts: null, layer: null, days: null, hrs: null, mins: null, kg: null, sets: null, units: null,
     pv: null, sv: null, htHrs: null, fpHrs: null, price: null, ...nul(SHARED.i), roundTo: 1000 },
-  m: { stlr: { price: null, rate: null, yrs: null, util: null, fixed: null }, furn: nul(SHARED.furn), wire: nul(SHARED.wire) }, days: 25 });
+  m: { stlr: { price: null, rate: null, yrs: null, util: null }, furn: nul(SHARED.furn), wire: nul(SHARED.wire) }, days: 25 });
 let S = BLANK(), curId = '';
 
 /* ===== Maths (same formulas as the Excel) ===== */
@@ -50,10 +50,10 @@ function calc() {
   const i = {}, m = { stlr: {}, furn: {}, wire: {} }, o = {};
   for (const k in S.i) i[k] = z(S.i[k]); for (const g in m) for (const k in S.m[g]) m[g][k] = z(S.m[g][k]);
   const started = !!(S.i.machine || S.i.material);                                                // blank page = all zeros
-  i.sets = i.sets || 1; i.units = i.units || (started ? 1 : 0); i.roundTo = i.roundTo || 1000;          // blank units count as 1 only once a machine / material is selected
-  o.printHrs = i.days * 24 + i.hrs;                                                                     // C8
+  i.sets = 1; i.units = i.units || (started ? 1 : 0); i.roundTo = i.roundTo || 1000;          // blank units count as 1 only once a machine / material is selected
+  o.printHrs = i.days * 24 + i.hrs + i.mins / 60;                                                               // C8
   o.emiS = r100(emi(m.stlr.price, m.stlr.rate, m.stlr.yrs));                                            // C35
-  o.mhrS = m.stlr.fixed > 0 ? m.stlr.fixed : o.emiS / hrsM(m.stlr.util);                               // C37 (fixed rate per hr overrides EMI)
+  o.mhrS = o.emiS / hrsM(m.stlr.util);                                                                    // C37 machine hour rate = EMI / hours per month
   o.emiF = r100(emi(m.furn.price, m.furn.rate, m.furn.yrs)); o.mhrF = o.emiF / hrsM(m.furn.util);     // C41 C43
   o.pwrF = m.furn.kwh * m.furn.kwhRate + m.furn.other;                                                  // C49
   o.emiW = r100(emi(m.wire.price, m.wire.rate, m.wire.yrs)); o.mhrW = o.emiW / hrsM(m.wire.util);     // C53 C56
@@ -90,7 +90,7 @@ function buildMachines() {
   const f = (g, k, l, u) => `<label>${l}<span class="u"><input type="number" step="any" data-m="${g}.${k}"><i>${u}</i></span></label>`;
   const base = g => f(g, 'price', 'Machine price', 'INR') + f(g, 'rate', 'Interest rate', '% p.a') + f(g, 'yrs', 'No. of years', 'yrs') + f(g, 'util', 'Utilisation (25 days/month)', '%');
   $('#machines').innerHTML = `
-  <div class="mc"><h3><span data-lab2>Selected machine</span></h3>${base('stlr')}${f('stlr', 'fixed', 'Fixed rate per hr (blank = use EMI)', 'INR/hr')}
+  <div class="mc"><h3><span data-lab2>Selected machine</span></h3>${base('stlr')}
    <div class="o"><span>Monthly EMI</span><span data-o="emiS"></span></div><div class="o"><span>Machine hour rate (MHR) used</span><span data-o="mhrS"></span></div></div>
   <div class="mc"><h3>HT furnace</h3>${base('furn')}${f('furn', 'kwh', 'Total rating of furnace', 'kWh')}${f('furn', 'kwhRate', 'Per unit cost of kWh', 'INR')}${f('furn', 'other', 'Other costs', 'INR')}
    <div class="o"><span>Monthly EMI</span><span data-o="emiF"></span></div><div class="o"><span>MHR</span><span data-o="mhrF"></span></div><div class="o"><span>Total power cost / hr</span><span data-o="pwrF"></span></div></div>
@@ -128,7 +128,7 @@ function applyMaterial() {   // material dropdown -> powder price/kg, HT hrs, fu
 function applyMachine() {    // machine dropdown -> laser, machine rate / finance block and the shared rates
   const mc = MCH.find(x => x.n === S.i.machine);
   if (!mc) { Object.assign(S.i, { laser: '', ...nul(SHARED.i) }); S.m = BLANK().m; }
-  else { Object.assign(S.i, { laser: mc.laser, ...SHARED.i }); S.m = { stlr: { price: mc.price, rate: mc.rate, yrs: mc.yrs, util: mc.util, fixed: mc.fixed }, furn: { ...SHARED.furn }, wire: { ...SHARED.wire } }; }
+  else { Object.assign(S.i, { laser: mc.laser, ...SHARED.i }); S.m = { stlr: { price: mc.price, rate: mc.rate, yrs: mc.yrs, util: mc.util }, furn: { ...SHARED.furn }, wire: { ...SHARED.wire } }; }
   bind();
 }
 document.addEventListener('input', e => {
@@ -148,9 +148,9 @@ function listsUI() {
   $('#pTbl').innerHTML = '<thead><tr><th>Powder</th><th>Price / kg</th><th>Density g/cc</th><th>Wastage</th><th>HT time (hrs)</th><th>HT power (hrs)</th><th></th></tr></thead><tbody>' +
     POW.map((p, n) => `<tr><td><input data-p="${n}.n" value="${esc(p.n)}"></td>` + ['p', 'dens', 'waste', 'ht', 'fp'].map(k => `<td><input type="number" step="any" data-p="${n}.${k}" value="${esc(p[k])}"></td>`).join('') + `<td><button class="ghost" data-del="${n}">Remove</button></td></tr>`).join('') + '</tbody>';
   const nv = v => v == null ? '' : v;
-  $('#kTbl').innerHTML = '<thead><tr><th>Machine</th><th>Lasers</th><th>Price</th><th>Interest %</th><th>Years</th><th>Util %</th><th>Fixed rate / hr</th><th></th></tr></thead><tbody>' +
+  $('#kTbl').innerHTML = '<thead><tr><th>Machine</th><th>Lasers</th><th>Price</th><th>Interest %</th><th>Years</th><th>Util %</th><th></th></tr></thead><tbody>' +
     MCH.map((m, n) => `<tr><td><input data-kn="${n}.n" value="${esc(m.n)}"></td><td><select data-kn="${n}.laser">${['', 'Single laser', 'Dual laser', 'Quad laser'].map(x => `<option${x === m.laser ? ' selected' : ''}>${x}</option>`).join('')}</select></td>` +
-      ['price', 'rate', 'yrs', 'util', 'fixed'].map(k => `<td><input type="number" step="any" data-kn="${n}.${k}" value="${esc(nv(m[k]))}"></td>`).join('') + `<td><button class="ghost" data-kd="${n}">Remove</button></td></tr>`).join('') + '</tbody>';
+      ['price', 'rate', 'yrs', 'util'].map(k => `<td><input type="number" step="any" data-kn="${n}.${k}" value="${esc(nv(m[k]))}"></td>`).join('') + `<td><button class="ghost" data-kd="${n}">Remove</button></td></tr>`).join('') + '</tbody>';
   lockLists();
 }
 document.addEventListener('change', e => {
@@ -162,7 +162,7 @@ document.addEventListener('click', e => {
   const d = e.target.dataset; if (d.del != null) { POW.splice(+d.del, 1); listsUI(); fillSelects(); render(); autoSave(); } if (d.kd != null) { MCH.splice(+d.kd, 1); listsUI(); fillSelects(); autoSave(); }
 });
 $('#pAdd').onclick = () => { POW.push({ n: 'New powder', p: 0, dens: 0, waste: 0, ht: 5.5, fp: 3.5 }); listsUI(); fillSelects(); autoSave(); };
-$('#kAdd').onclick = () => { MCH.push({ n: 'New machine', laser: '', price: null, rate: null, yrs: null, util: null, fixed: null }); listsUI(); fillSelects(); autoSave(); };
+$('#kAdd').onclick = () => { MCH.push({ n: 'New machine', laser: '', price: null, rate: null, yrs: null, util: null }); listsUI(); fillSelects(); autoSave(); };
 let st; const autoSave = () => { clearTimeout(st); st = setTimeout(saveLists, 700); };   // every add / edit / remove is stored automatically
 async function saveLists() {
   try {
@@ -184,7 +184,7 @@ function loan(from) {
   $('#arc').setAttribute('stroke-dasharray', `${c * (tot ? int / tot : 0)} ${c}`);
 }
 ['Amt', 'Rate', 'Yrs'].forEach(n => { const k = n.toLowerCase(); $('#l' + n).oninput = () => loan(k); $('#s' + n).oninput = e => { L[k] = +e.target.value; loan(); }; });
-$('#lApply').onclick = () => { const g = $('#lTarget').value; if (g === 'stlr' && !S.i.machine) return toast('Select a machine in Project details first'); Object.assign(S.m[g], { price: L.amt, rate: L.rate, yrs: L.yrs }); if (g === 'stlr') S.m.stlr.fixed = null; bind(); render(); toast('Applied – EMI & machine hour rate updated'); };
+$('#lApply').onclick = () => { const g = $('#lTarget').value; if (g === 'stlr' && !S.i.machine) return toast('Select a machine in Project details first'); Object.assign(S.m[g], { price: L.amt, rate: L.rate, yrs: L.yrs }); bind(); render(); toast('Applied – EMI & machine hour rate updated'); };
 
 /* ===== Download libraries (ExcelJS, jsPDF, AutoTable): loaded when first needed, from the "libs" folder of this website ===== */
 const LIBS = {
@@ -264,7 +264,7 @@ async function buildXlsx() {
   [['Machine', i.machine], ['Material', i.material], ['Customer', i.customer], ['Part Name /Drawing No', i.part], ['No of lasers', i.laser]].forEach(([l, v], n) => {
     put(`B${n + 1}`, l, null, { fill: GREY, b: true }); put(`C${n + 1}`, v || '', null, { h: 'left' }); put(`D${n + 1}`, '', null, {}); put(`E${n + 1}`, '', null, {}); merge(`C${n + 1}`, `E${n + 1}`); });
   const det = (r, l, v, f, u, fmt) => { put(`B${r}`, l, null, { fill: GREY, b: true }); put(`C${r}`, v, f, { fill: YEL, h: 'right', fmt }); put(`D${r}`, u, null, { bd: false, color: 'FF5B6B70' }); };
-  det(6, 'Total No of Parts or sets/ Build', z(i.parts), null, 'Nos'); det(7, 'Layer thickness', z(i.layer), null, 'µm'); det(8, 'Total Print time', o.printHrs, `(${z(i.days)}*24)+${z(i.hrs)}`, 'hrs');
+  det(6, 'Total No of Parts or sets/ Build', z(i.parts), null, 'Nos'); det(7, 'Layer thickness', z(i.layer), null, 'µm'); det(8, 'Total Print time', o.printHrs, `(${z(i.days)}*24)+${z(i.hrs)}+${z(i.mins)}/60`, 'hrs');
   det(9, 'Total Material consumption/Build', z(i.kg), null, 'Kg'); det(10, 'No. of sets', z(i.sets) || 1, null, 'sets'); det(11, 'No. of Units', z(i.units) || 1, null, 'units');
   ws.getCell('C' + (7 + OFF)).dataValidation = { type: 'list', allowBlank: true, formulae: ['"30,40,50,60,90,100"'] };
   ws.getCell('C' + (5 + OFF)).dataValidation = { type: 'list', allowBlank: true, formulae: ['"Single laser,Dual laser,Quad laser"'] };
@@ -291,7 +291,7 @@ async function buildXlsx() {
   title(31, `${i.machine || 'Machine'} - Metal printing`);
   row(32, 'machine price (INR)', z(m.stlr.price), null, { fill: YEL, fmt: '#,##0' }); row(33, 'Interest rate % p.a', z(m.stlr.rate), null, { fill: YEL }); row(34, 'No of years', z(m.stlr.yrs), null, { fill: YEL });
   row(35, 'Monthly EMI Cost', o.emiS, 'ROUND(-PMT(C33/1200,C34*12,C32),-2)', { fmt: '#,##0' }); row(36, `No. of hrs with ${z(m.stlr.util)}% utilisation on 25 days`, hr(m.stlr.util), `25*24*${z(m.stlr.util)}/100`);
-  if (z(m.stlr.fixed) > 0) { row(37, 'Machine Hour Rate (MHR) - fixed rate per hr', o.mhrS, null, { fill: YEL, b: true, fmt: '#,##0.00' }); } else row(37, 'Machine Hour Rate (MHR)', o.mhrS, 'IFERROR(C35/C36,0)', { b: true, fmt: '#,##0.00' });
+  row(37, 'Machine Hour Rate (MHR)', o.mhrS, 'IFERROR(C35/C36,0)', { b: true, fmt: '#,##0.00' });
   title(39, 'HT Furnace'); row(40, 'machine price (INR)', z(m.furn.price), null, { fill: YEL, fmt: '#,##0' }); row(41, 'Monthly EMI Cost', o.emiF, 'ROUND(-PMT(F40/1200,F41*12,C40),-2)', { fmt: '#,##0' });
   put('E40', 'Interest % p.a', null, { fill: GREY }); put('F40', z(m.furn.rate), null, { fill: YEL }); put('E41', 'No of years', null, { fill: GREY }); put('F41', z(m.furn.yrs), null, { fill: YEL });
   row(42, `No. of hrs with ${z(m.furn.util)}% utilisation on 25 days`, hr(m.furn.util), `25*24*${z(m.furn.util)}/100`); row(43, 'Machine Hour Rate (MHR)', o.mhrF, 'IFERROR(C41/C42,0)', { b: true, fmt: '#,##0.00' });
@@ -326,7 +326,7 @@ async function toPdf() {
   d.autoTable({ ...T, ...(hasImg ? { tableWidth: 335 } : {}), startY: 90, head: [['Project details', '']], columnStyles: { 0: { cellWidth: hasImg ? 150 : 200, fontStyle: 'bold' } }, body: [
     ['Machine', v(i.machine)], ['Material', v(i.material)], ['Customer', v(i.customer)], ['Part name / Drawing no', v(i.part)], ['No. of lasers', v(i.laser)],
     ['Total no. of parts or sets / build', N(i.parts) + ' Nos'], ['Layer thickness', N(i.layer) + ' um'], ['Total print time', N(o.printHrs) + ' hrs'],
-    ['Material consumption / build', N(i.kg) + ' Kg'], ['No. of sets / units', `${N(i.sets || 1)} / ${N(i.units || 1)}`]] });
+    ['Material consumption / build', N(i.kg) + ' Kg'], ['No. of units', N(i.units || 1)]] });
   if (hasImg) {   // model picture to the right of the project details, kept inside that block's height
     const bx = 40 + 335 + 14, bw = W - 40 - bx, bh = Math.max(60, d.lastAutoTable.finalY - 90), iw = IMGW || 640, ih = IMGH || 480, k = Math.min(bw / iw, bh / ih), w = iw * k, h = ih * k;
     d.setDrawColor(190); d.rect(bx, 90, bw, bh); d.addImage(IMG, 'JPEG', bx + (bw - w) / 2, 90 + (bh - h) / 2, w, h);
@@ -460,7 +460,7 @@ function apDetailHtml(r) {
   const kv = (k, v) => `<tr><th>${esc(k)}</th><td>${esc(v ?? '–')}</td></tr>`;
   const rows = o.rows.map((x, n) => `<tr><td>${n + 1}</td><td>${esc(apLabel(n))}</td><td class="r">${num(x.q)}</td><td class="r">${num(x.r)}</td><td class="r">${inr(x.t)}</td></tr>`).join('');
   const log = (r.approval.log || []).map(l => `<li>${esc(new Date(l.t).toLocaleString('en-IN'))} – <b>${esc(l.e)}</b>${l.lvl ? ' L' + l.lvl : ''} (${esc(l.who)})${l.note ? ': ' + esc(l.note) : ''}</li>`).join('');
-  return `<div class="apgrid"><div><table class="apkv">${kv('Customer', i.customer)}${kv('Part / drawing', i.part)}${kv('Machine', i.machine)}${kv('Material', i.material)}${kv('Lasers', i.laser)}${kv('Parts / build', i.parts)}${kv('Layer (µm)', i.layer)}${kv('Print time (hrs)', num(o.printHrs))}${kv('Material kg / build', i.kg)}${kv('Sets / units', (i.sets || 1) + ' / ' + (i.units || 1))}${kv('Prepared by', r.approval.by)}${kv('Status', apOverall({ ...r.approval, mine: r.mine }))}</table></div>
+  return `<div class="apgrid"><div><table class="apkv">${kv('Customer', i.customer)}${kv('Part / drawing', i.part)}${kv('Machine', i.machine)}${kv('Material', i.material)}${kv('Lasers', i.laser)}${kv('Parts / build', i.parts)}${kv('Layer (µm)', i.layer)}${kv('Print time (hrs)', num(o.printHrs))}${kv('Material kg / build', i.kg)}${kv('No. of units', i.units || 1)}${kv('Prepared by', r.approval.by)}${kv('Status', apOverall({ ...r.approval, mine: r.mine }))}</table></div>
     ${r.image && IMG_RE.test(r.image) ? `<div class="imgbox"><img alt="Model image" src="${r.image}"></div>` : ''}</div>
     <h3 class="aph">Cost breakdown</h3><div class="scroll"><table class="aptbl"><thead><tr><th>Sl.</th><th>Items</th><th class="r">No. of units</th><th class="r">Per unit cost</th><th class="r">Total cost (Rs.)</th></tr></thead><tbody>${rows}</tbody>
     <tfoot><tr><th colspan="4">Total cost</th><td class="r">${inr(o.total)}</td></tr><tr><th colspan="4">Margin</th><td class="r">${inr(o.margin)}</td></tr><tr><th colspan="4">Total round-off</th><td class="r">${inr(o.round)}</td></tr><tr><th colspan="4">Per part cost</th><td class="r">${inr2(o.perPart)}</td></tr></tfoot></table></div>
@@ -604,6 +604,7 @@ function fillApSel(cur) {      // dropdowns list the users created with role App
 const apClear = () => { $('#uMail').value = ''; fillApSel([]); };
 const apToggle = () => { $('#apLv').hidden = $('#uRole').value === 'approver'; };
 $('#uRole').addEventListener('change', apToggle);
+$('#uRefresh').onclick = async () => { await refreshUsers(); toast('User list refreshed'); };
 $('#uAp').onclick = async () => {
   const username = $('#uName').value.trim(); if (!username) return toast('Type or pick the user name first');
   try { const r = await call('userApprovers', { username, email: $('#uMail').value.trim(), approvers: $('#uRole').value === 'approver' ? [] : apForm().list }); if (!r.ok) throw new Error(r.error); toast('E-mail and approvers saved'); refreshUsers(); }

@@ -42,8 +42,8 @@
       <label>Layer thickness (pick or type)<span class="u"><input class="y" data-k="layer" type="number" min="1" list="layerList" placeholder="Select / type"><i>µm</i></span><datalist id="layerList"><option value="30"><option value="40"><option value="50"><option value="60"><option value="90"><option value="100"></datalist></label>
       <label>Print time (days)<span class="u"><input class="y" data-k="days" type="number" min="0"><i>days</i></span></label>
       <label>Print time (extra hours)<span class="u"><input class="y" data-k="hrs" type="number" min="0" step="0.1"><i>hrs</i></span></label>
+      <label>Print time (minutes)<span class="u"><input class="y" data-k="mins" type="number" min="0" step="1"><i>min</i></span></label>
       <label>Material consumption / build<span class="u"><input class="y" data-k="kg" type="number" min="0" step="0.01"><i>Kg</i></span></label>
-      <label>No. of sets<span class="u"><input class="y" data-k="sets" type="number" min="1"><i>sets</i></span></label>
       <label>No. of units (builds)<span class="u"><input class="y" data-k="units" type="number" min="1"><i>units</i></span></label>
     </div>
     <div class="imgrow">
@@ -55,15 +55,15 @@
       </div>
       <div class="imgbox" id="imgBox" hidden><img id="imgPrev" alt="Model image of this quote"></div>
     </div>
-    <p class="muted">Total print time = days × 24 + hours = <b data-o="printHrs"></b> hrs. Select a machine and material to auto-fill the related values. Yellow fields are manual entries.</p>
-    <details class="est"><summary>Estimate material kg from part &amp; support volume (optional)</summary>
+    <p class="muted">Total print time = days × 24 + hours + minutes ÷ 60 = <b data-o="printHrs"></b> hrs. Select a machine and material to auto-fill the related values. Yellow fields are manual entries.</p>
+    <div class="est"><h3 class="esth">Estimate material kg from part &amp; support volume</h3>
       <div class="grid">
         <label>Part volume (cm³, from Magics / SLM Build Pro)<span class="u"><input class="y" data-k="pv" type="number" min="0" step="any"><i>cm³</i></span></label>
         <label>Support volume (cm³)<span class="u"><input class="y" data-k="sv" type="number" min="0" step="any"><i>cm³</i></span></label>
         <label>Estimated kg incl. powder wastage<span class="u"><b data-o="estKg" class="val"></b><button id="bUse" class="ghost">Use as consumption</button></span></label>
       </div>
       <p class="muted">= (part + support + wastage) ÷ 1000 × material density. Density and wastage come from the powder list.</p>
-    </details>
+    </div>
   </div>
 
   <div class="card">
@@ -95,7 +95,7 @@
   <nav class="tabs"><button data-t="t1" class="on">Machine hour rates</button><button data-t="t7">Machine list</button><button data-t="t4">Powder / material list</button><button data-t="t2">Loan calculator</button><button data-t="t3">Values</button><button data-t="t9" id="tabAppr" hidden>Approvals</button><button data-t="t6">Saved quotes</button><button data-t="t8" id="tabUsers" hidden>Users</button></nav>
   <div id="t1" class="tab on"><div id="machines" class="grid3"></div></div>
   <div id="t7" class="tab"><div class="scroll"><table id="kTbl"></table></div><button id="kAdd" class="ghost">Add machine</button> <button id="kSave">Save</button>
-    <p class="muted">Selecting a machine fills its finance values and laser type. A fixed rate per hour overrides the EMI-based machine hour rate (blank = use EMI).</p></div>
+    <p class="muted">Selecting a machine fills its finance values and laser type.</p></div>
   <div id="t2" class="tab">
     <div class="loan">
       <div class="lc">
@@ -122,7 +122,7 @@
       <label>Level 1 approver<select id="a1s"></select></label>
       <label>Level 2 approver<select id="a2s"></select></label>
       <label>Level 3 approver<select id="a3s"></select></label></div></div>
-    <p><button id="uSave">Add user / set password</button> <button id="uAp" class="ghost">Save e-mail &amp; approvers only</button></p>
+    <p><button id="uSave">Add user / set password</button> <button id="uAp" class="ghost">Save e-mail &amp; approvers only</button> <button id="uRefresh" class="ghost" type="button">Refresh</button></p>
     <div class="scroll"><table id="uTbl"><thead><tr><th>User name</th><th>Role</th><th>Status</th><th>Approvers (L1 → L2 → L3)</th><th></th></tr></thead><tbody></tbody></table></div></div>
   <div id="t9" class="tab"><div class="aptools"><input id="apSearch" type="search" placeholder="Search customer, part, prepared by, status…" aria-label="Search approvals" autocomplete="off"><button id="apRefresh" class="ghost">Refresh</button><span class="muted" id="apCount"></span></div>
     <div class="scroll"><table id="apTbl"><thead><tr><th>Sent</th><th>Level</th><th>Customer</th><th>Part</th><th class="r">Per part</th><th>Prepared by</th><th>Status</th><th></th></tr></thead><tbody></tbody></table></div></div>
