@@ -185,6 +185,17 @@ function loan(from) {
 }
 ['Amt', 'Rate', 'Yrs'].forEach(n => { const k = n.toLowerCase(); $('#l' + n).oninput = () => loan(k); $('#s' + n).oninput = e => { L[k] = +e.target.value; loan(); }; });
 $('#lApply').onclick = () => { const g = $('#lTarget').value; if (g === 'stlr' && !S.i.machine) return toast('Select a machine in Project details first'); Object.assign(S.m[g], { price: L.amt, rate: L.rate, yrs: L.yrs }); bind(); render(); toast('Applied – EMI & machine hour rate updated'); };
+// The loan calculator starts from the values of the machine it is applied to (selected machine / furnace / wire cut)
+function loanFromTarget() {
+  const m = S.m[$('#lTarget').value] || {};
+  if (m.price != null && m.price !== '') L.amt = +m.price || 0;
+  if (m.rate != null && m.rate !== '') L.rate = +m.rate || 0;
+  if (m.yrs != null && m.yrs !== '') L.yrs = +m.yrs || 0;
+  loan();
+}
+$('#lTarget').addEventListener('change', loanFromTarget);
+$('.tabs').addEventListener('click', e => { if (e.target.dataset.t === 't2') loanFromTarget(); });
+
 
 /* ===== Download libraries (ExcelJS, jsPDF, AutoTable): loaded when first needed, from the "libs" folder of this website ===== */
 const LIBS = {
